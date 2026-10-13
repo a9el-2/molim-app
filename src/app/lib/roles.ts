@@ -99,12 +99,12 @@ export const ROUTE_ACCESS_RULES: Record<string, UserRole[]> = {
   "/invitations": ["HR", "ADMIN", "SUPER_ADMIN"],
 
   // صفحات رؤساء الأقسام
-  "/task-review": ["DEPARTMENT_HEAD", "ADMIN", "SUPER_ADMIN"],
+  "/task-review": ["DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
 
   // صفحات مشتركة أو مخصصة
   "/reports": ["HR", "ADMIN", "SUPER_ADMIN"],
-  "/add-task": ["VOLUNTEER", "DEPARTMENT_HEAD", "ADMIN", "SUPER_ADMIN"],
-  "/tasks": ["VOLUNTEER", "DEPARTMENT_HEAD", "ADMIN", "SUPER_ADMIN"],
+  "/add-task": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
+  "/tasks": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
   "/hours": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
   "/department": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
   "/certificates": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
