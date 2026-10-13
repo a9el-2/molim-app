@@ -32,49 +32,12 @@ export async function POST(request: NextRequest) {
   }
 
   const validation = validateTelegramInitData(body.initData, botToken);
-  console.log("[telegram-auth] deployed build marker: DUAL-v3");
-  console.log(
-    "[telegram-auth] initData FULL:",
-    body.initData
-  );
-  console.log(
-    "[telegram-auth] hash field:",
-    body.initData.split("&").find((p) => p.startsWith("hash=")) ?? "MISSING"
-  );
-  if (!validation.ok) {
-    const crypto = await import("crypto");
-    const secret = crypto
-      .createHmac("sha256", Buffer.from("WebAppData"))
-      .update(Buffer.from(botToken))
-      .digest();
-    const params = new URLSearchParams(body.initData);
-    const decoded = Array.from(params.entries())
-      .filter(([k]) => k !== "hash")
-      .map(([k, v]) => `${k}=${v}`)
-      .sort()
-      .join("\n");
-    const rawSorted = body.initData
-      .split("&")
-      .filter((p) => p && !p.startsWith("hash="))
-      .sort()
-      .join("\n");
-    const hDecoded = crypto.createHmac("sha256", secret).update(decoded).digest("hex");
-    const hRaw = crypto.createHmac("sha256", secret).update(rawSorted).digest("hex");
-    const given = params.get("hash") ?? "none";
-    console.log("[telegram-auth] decoded-hash:", hDecoded);
-    console.log("[telegram-auth] raw-hash    :", hRaw);
-    console.log("[telegram-auth] given-hash   :", given);
-    console.log("[telegram-auth] decoded-ok   :", hDecoded === given);
-    console.log("[telegram-auth] raw-ok       :", hRaw === given);
-  }
-  console.log("[telegram-auth] validation ok:", validation.ok, JSON.stringify(validation.ok ? validation.user : validation));
 
   if (!validation.ok) {
     return NextResponse.json({ error: validation.error }, { status: 401 });
   }
 
   if (!isTelegramInitDataFresh(validation.authDate)) {
-    console.log("[telegram-auth] stale auth_date:", validation.authDate);
     return NextResponse.json(
       { error: "انتهت صلاحية الجلسة، أعد فتح التطبيق" },
       { status: 401 }
@@ -89,47 +52,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { data: sample } = await supabase
+  const { data: user } = await supabase
     .from("users")
     .select("*")
-    .limit(1)
+    .eq("telegram_id", validation.user.telegramId)
     .maybeSingle();
 
-  if (sample && "telegram_id" in sample) {
-    console.log(
-      "[telegram-auth] looking up telegram_id:",
-      validation.user.telegramId
+  if (!user) {
+    return NextResponse.json(
+      { error: "حساب Telegram غير مرتبط بأي عضو", hasLinkedUser: false },
+      { status: 404 }
     );
-
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("*")
-      .eq("telegram_id", validation.user.telegramId)
-      .maybeSingle();
-
-    console.log(
-      "[telegram-auth] user lookup error:",
-      userError ? JSON.stringify(userError) : "none",
-      "user:",
-      user ? JSON.stringify({ id: user.id, role: user.role, status: user.status }) : "null"
-    );
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "حساب Telegram غير مرتبط بأي عضو", hasLinkedUser: false },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      telegram: validation.user,
-      hasLinkedUser: true,
-      userId: user.id,
-    });
   }
 
   return NextResponse.json({
     telegram: validation.user,
-    hasLinkedUser: false,
+    hasLinkedUser: true,
+    userId: user.id,
   });
 }

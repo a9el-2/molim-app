@@ -88,9 +88,6 @@ export default function SettingsPage() {
   const [requireInvite, setRequireInvite] =
     useState(true);
 
-  const [inviteExpiry, setInviteExpiry] =
-    useState("48");
-
   const [agreementDuration, setAgreementDuration] =
     useState("3");
 
@@ -330,13 +327,6 @@ export default function SettingsPage() {
               {/* Invitations */}
               {selectedSection === "الدعوات" && (
                 <>
-                  <InputField
-                    label="مدة صلاحية الدعوة بالساعات"
-                    value={inviteExpiry}
-                    onChange={setInviteExpiry}
-                    type="number"
-                  />
-
                   <div className="border border-molim bg-molim-soft p-4">
                     <p className="text-sm font-semibold">
                       قاعدة الدعوات

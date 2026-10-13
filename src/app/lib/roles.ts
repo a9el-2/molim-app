@@ -96,7 +96,7 @@ export const ROUTE_ACCESS_RULES: Record<string, UserRole[]> = {
   "/volunteers": ["HR", "ADMIN", "SUPER_ADMIN"],
   "/agreements": ["HR", "ADMIN", "SUPER_ADMIN"],
   "/certificate-requests": ["HR", "SUPER_ADMIN"],
-  "/invitations": ["HR", "SUPER_ADMIN"],
+  "/invitations": ["HR", "ADMIN", "SUPER_ADMIN"],
 
   // صفحات رؤساء الأقسام
   "/task-review": ["DEPARTMENT_HEAD", "ADMIN", "SUPER_ADMIN"],
@@ -118,7 +118,19 @@ export function canAccessRoute(role: UserRole, pathname: string): boolean {
   const cleanPath = pathname.split("?")[0].replace(/\/$/, "") || "/";
 
   // الصفحات العامة المفتوحة للجميع
-  if (["/", "/register", "/join", "/welcome", "/workflow", "/structure", "/suggestions"].includes(cleanPath)) {
+  if (
+    [
+      "/",
+      "/link",
+      "/register",
+      "/join",
+      "/welcome",
+      "/workflow",
+      "/structure",
+      "/suggestions",
+      "/complete-profile",
+    ].includes(cleanPath)
+  ) {
     return true;
   }
 

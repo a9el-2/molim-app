@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { timingSafeEqual } from "./timing-safe.ts";
 
 export type TelegramUser = {
   telegramId: number;
@@ -11,11 +12,11 @@ export type TelegramAuthResult =
   | { ok: true; user: TelegramUser; authDate: string }
   | { ok: false; error: string };
 
-function hmacSha256(buffer: Buffer, key: Buffer): Buffer {
-  return crypto.createHmac("sha256", key).update(buffer).digest();
+function hmacSha256(data: crypto.BinaryLike, key: crypto.BinaryLike): Buffer {
+  return crypto.createHmac("sha256", key).update(data).digest();
 }
 
-function hexSha256(data: string, key: Buffer): string {
+function hmacSha256Hex(data: string, key: crypto.BinaryLike): string {
   return crypto.createHmac("sha256", key).update(data).digest("hex");
 }
 
@@ -23,7 +24,6 @@ export function validateTelegramInitData(
   initData: string,
   botToken: string
 ): TelegramAuthResult {
-  console.log("[telegram-auth][validate] version: DUAL-v3");
   const params = new URLSearchParams(initData);
 
   const hash = params.get("hash");
@@ -36,10 +36,10 @@ export function validateTelegramInitData(
     return { ok: false, error: "بيانات Telegram تفتقد auth_date" };
   }
 
-  const secretKey = hmacSha256(
-    Buffer.from("WebAppData"),
-    Buffer.from(botToken)
-  );
+  // وفق وثائق Telegram الرسمية:
+  //   secret_key = HMAC_SHA256(<bot_token>, "WebAppData")
+  // وبتفصيل الحجج: المفتاح (key) هو النص الثابت "WebAppData" والبيانات هي التوكن.
+  const secretKey = hmacSha256(botToken, "WebAppData");
 
   // الصيغة الأولى: قيم مفكوكة (URLSearchParams)
   const decodedPairs = Array.from(params.entries())
@@ -55,10 +55,10 @@ export function validateTelegramInitData(
     .sort();
   const rawCheckString = rawPairs.join("\n");
 
-  const decodedHash = hexSha256(decodedCheckString, secretKey);
-  const rawHash = hexSha256(rawCheckString, secretKey);
+  const decodedHash = hmacSha256Hex(decodedCheckString, secretKey);
+  const rawHash = hmacSha256Hex(rawCheckString, secretKey);
 
-  if (decodedHash !== hash && rawHash !== hash) {
+  if (!timingSafeEqual(decodedHash, hash) && !timingSafeEqual(rawHash, hash)) {
     return { ok: false, error: "تعذر التحقق من بيانات Telegram" };
   }
 
@@ -90,9 +90,28 @@ export function validateTelegramInitData(
   };
 }
 
-export function isTelegramInitDataFresh(authDate: string, maxAgeSec = 86400): boolean {
+export const TELEGRAM_INIT_MAX_AGE_SEC = 86400;
+export const TELEGRAM_CLOCK_SKEW_SEC = 30;
+
+/**
+ * التحقق من صلاحية auth_date.
+ * - يرفض المنتهي الصلاحية (أقدم من maxAgeSec).
+ * - يرفض التواريخ المستقبلية غير المقبولة (أبعد من هامش انحراف الساعة).
+ * الحد الأقصى الحالي (24 ساعة) محفوظ كما هو.
+ */
+export function isTelegramInitDataFresh(
+  authDate: string,
+  maxAgeSec = TELEGRAM_INIT_MAX_AGE_SEC,
+  futureToleranceSec = TELEGRAM_CLOCK_SKEW_SEC,
+  nowSec = Math.floor(Date.now() / 1000)
+): boolean {
   const authSeconds = Number(authDate);
   if (!Number.isFinite(authSeconds)) return false;
-  const nowSeconds = Math.floor(Date.now() / 1000);
-  return nowSeconds - authSeconds <= maxAgeSec;
+
+  const age = nowSec - authSeconds;
+
+  if (age > maxAgeSec) return false;
+  if (age < -futureToleranceSec) return false;
+
+  return true;
 }

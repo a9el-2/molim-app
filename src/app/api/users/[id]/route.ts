@@ -1,5 +1,13 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "../../../lib/supabase/server";
+import { authenticateRequest, forbidden, accountInactive } from "../../../lib/server-auth";
+import {
+  canReadUser,
+  decideMemberUpdate,
+  isActiveMember,
+  isSelf,
+} from "../../../lib/access-control";
+import type { UserRole } from "../../../lib/roles";
 
 function pickName(row: Record<string, unknown>): string {
   if (typeof row.name === "string" && row.name) return row.name;
@@ -16,6 +24,20 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await authenticateRequest(_request, { allowInactive: true });
+  if (!auth.ok) return auth.response;
+
+  const { id } = await params;
+
+  if (!canReadUser(auth.user.role, auth.user.id, id)) {
+    return forbidden("لا تملك صلاحية عرض هذا الحساب.");
+  }
+
+  // الحساب غير النشط يستطيع قراءة بياناته الذاتية فقط، ولا يطّلع على غيره.
+  if (!isActiveMember(auth.user.status) && !isSelf(auth.user.id, id)) {
+    return accountInactive();
+  }
+
   const supabase = getSupabaseServerClient();
   if (!supabase) {
     return NextResponse.json(
@@ -23,8 +45,6 @@ export async function GET(
       { status: 503 }
     );
   }
-
-  const { id } = await params;
 
   const { data: row, error } = await supabase
     .from("users")
@@ -67,6 +87,7 @@ export async function GET(
       joinedAt: typeof record.joined_at === "string" ? record.joined_at : null,
       createdAt: typeof record.created_at === "string" ? record.created_at : null,
       updatedAt: typeof record.updated_at === "string" ? record.updated_at : null,
+      profileCompleted: record.profile_completed !== false,
     },
   });
 }
@@ -75,13 +96,8 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = getSupabaseServerClient();
-  if (!supabase) {
-    return NextResponse.json(
-      { demo: true },
-      { status: 503 }
-    );
-  }
+  const auth = await authenticateRequest(request);
+  if (!auth.ok) return auth.response;
 
   const { id } = await params;
 
@@ -103,6 +119,49 @@ export async function PATCH(
       { error: "بيانات غير صالحة." },
       { status: 400 }
     );
+  }
+
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    return NextResponse.json(
+      { demo: true },
+      { status: 503 }
+    );
+  }
+
+  // نجلب دور العضو الحالي لحماية الحسابات الحساسة قبل اتخاذ القرار.
+  const { data: target, error: targetError } = await supabase
+    .from("users")
+    .select("id, role")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (targetError) {
+    return NextResponse.json(
+      { error: "تعذر تحديث المستخدم." },
+      { status: 500 }
+    );
+  }
+
+  if (!target) {
+    return NextResponse.json({ error: "العضو غير موجود." }, { status: 404 });
+  }
+
+  const decision = decideMemberUpdate({
+    requesterRole: auth.user.role,
+    requesterId: auth.user.id,
+    targetId: id,
+    targetRole: target.role as UserRole,
+    field,
+    newValue: value,
+  });
+
+  if (!decision.allowed) {
+    const status =
+      decision.reason === "invalid_role" || decision.reason === "invalid_status"
+        ? 400
+        : 403;
+    return NextResponse.json({ error: decision.message }, { status });
   }
 
   const { error } = await supabase

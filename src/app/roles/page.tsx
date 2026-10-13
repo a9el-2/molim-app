@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ROLE_NAMES, PERMISSIONS, type UserRole } from "../lib/roles";
 import RoleGuard from "../components/RoleGuard";
 import { useAuth } from "../lib/auth-context";
-import { fetchUsers, statusToArabic } from "../lib/supabase/dto";
+import { fetchUsers, statusToArabic, updateUserField } from "../lib/supabase/dto";
 
 type MemberStatus = "نشط" | "غير نشط" | "موقوف" | "منتهي التطوع" | "بانتظار الاعتماد";
 
@@ -97,6 +97,9 @@ export default function RolesPage() {
   const [escalationConfirmed, setEscalationConfirmed] =
     useState(false);
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     fetchUsers().then((users) => {
       if (!users) return;
@@ -184,15 +187,17 @@ export default function RolesPage() {
     setSelectedMember(member);
     setSelectedRole(member.role);
     setEscalationConfirmed(false);
+    setSaveError(null);
   }
 
   function closeMember() {
     setSelectedMember(null);
     setEscalationConfirmed(false);
+    setSaveError(null);
   }
 
-  function saveRole() {
-    if (!selectedMember) return;
+  async function saveRole() {
+    if (!selectedMember || saving) return;
 
     if (isSelf) return;
 
@@ -206,11 +211,15 @@ export default function RolesPage() {
     const targetId = selectedMember.molimId;
     const newRole = selectedRole;
 
-    fetch(`/api/users/${encodeURIComponent(targetId)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ field: "role", value: newRole }),
-    }).catch(() => null);
+    setSaveError(null);
+    setSaving(true);
+    const result = await updateUserField(targetId, "role", newRole);
+    setSaving(false);
+
+    if (!result.ok) {
+      setSaveError(result.error ?? "تعذر تحديث الرتبة.");
+      return;
+    }
 
     setMembers((current) =>
       current.map((member) =>
@@ -585,17 +594,23 @@ export default function RolesPage() {
                   </label>
                 )}
 
+              {saveError && (
+                <p className="mb-3 border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {saveError}
+                </p>
+              )}
+
               <button
                 type="button"
                 onClick={saveRole}
-                disabled={!canSave}
+                disabled={!canSave || saving}
                 className={`h-12 w-full font-semibold transition ${
-                  canSave
+                  canSave && !saving
                     ? "cursor-pointer bg-[#ed542f] text-white hover:bg-[#d94725]"
                     : "cursor-not-allowed bg-molim-soft text-molim-muted"
                 }`}
               >
-                حفظ تغيير الرتبة
+                {saving ? "جارٍ الحفظ..." : "حفظ تغيير الرتبة"}
               </button>
 
               <button

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 const durations = [
   {
@@ -50,7 +51,7 @@ export default function AgreementPage() {
       <div className="relative mx-auto max-w-md px-5 pb-14 pt-7">
         {/* الهيدر */}
         <header className="flex items-center justify-between border-b border-[#202124]/10 pb-4">
-          <a href="/register" className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center bg-[#ed542f] text-xl font-black text-white">
               م
             </div>
@@ -64,7 +65,7 @@ export default function AgreementPage() {
                 مُلم
               </h1>
             </div>
-          </a>
+          </Link>
 
           <span className="text-xs text-molim-muted">
             الخطوة الأخيرة

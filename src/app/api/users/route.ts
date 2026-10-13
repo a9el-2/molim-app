@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "../../lib/supabase/server";
+import { authenticateRequest, forbidden } from "../../lib/server-auth";
+import { canReadMembers } from "../../lib/access-control";
 
 function pickName(row: Record<string, unknown>): string {
   if (typeof row.name === "string" && row.name) return row.name;
@@ -13,6 +15,13 @@ function pickName(row: Record<string, unknown>): string {
 }
 
 export async function GET(request: Request) {
+  const auth = await authenticateRequest(request);
+  if (!auth.ok) return auth.response;
+
+  if (!canReadMembers(auth.user.role)) {
+    return forbidden("قائمة الأعضاء متاحة للإدارة والموارد البشرية فقط.");
+  }
+
   const supabase = getSupabaseServerClient();
   if (!supabase) {
     return NextResponse.json(
@@ -68,6 +77,7 @@ export async function GET(request: Request) {
         joinedAt: typeof record.joined_at === "string" ? record.joined_at : null,
         createdAt: typeof record.created_at === "string" ? record.created_at : null,
         updatedAt: typeof record.updated_at === "string" ? record.updated_at : null,
+        profileCompleted: record.profile_completed !== false,
       };
     })
     .filter((user) =>

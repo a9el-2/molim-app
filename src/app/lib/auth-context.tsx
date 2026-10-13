@@ -21,12 +21,14 @@ export type UserProfile = User & {
   email?: string;
   phone?: string;
   status?: string;
+  profileCompleted?: boolean;
 };
 
 export type AuthStatus =
   | "loading"
   | "demo"
   | "authenticated"
+  | "needs_linking"
   | "unauthenticated";
 
 export const MOCK_PROFILES: Record<UserRole, UserProfile> = {
@@ -94,6 +96,7 @@ type AuthContextType = {
   telegram: TelegramInitData | null;
   switchRole: (role: UserRole) => void;
   switchUser: (profile: UserProfile) => void;
+  refreshAuth: () => void;
   isReady: boolean;
 };
 
@@ -115,7 +118,12 @@ function readSavedRole(): UserRole | null {
 }
 
 function isDemoEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_DEMO === "1";
+  // لا يُفعّل وضع العرض في الإنتاج حتى لو كان NEXT_PUBLIC_DEMO=1.
+  // مطابق لسياسة الخادم في server-auth.ts.
+  return (
+    process.env.NEXT_PUBLIC_DEMO === "1" &&
+    process.env.NODE_ENV !== "production"
+  );
 }
 
 function initialStatus(): AuthStatus {
@@ -151,6 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>(initialStatus);
   const [user, setUser] = useState<UserProfile>(initialUser);
   const [telegram, setTelegram] = useState<TelegramInitData | null>(null);
+  const [authNonce, setAuthNonce] = useState(0);
   const telegramState = useTelegram();
 
   useEffect(() => {
@@ -162,6 +171,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const timeout = setTimeout(async () => {
       if (cancelled) return;
+
+      if (isDemoEnabled()) {
+        const saved = readSavedRole();
+        setUser(saved ? MOCK_PROFILES[saved] : MOCK_PROFILES.SUPER_ADMIN);
+        setTelegram(tg);
+        setStatus("demo");
+        return;
+      }
 
       if (!tg) {
         if (isDemoEnabled()) {
@@ -205,6 +222,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email: real.email ?? undefined,
             phone: real.phone ?? undefined,
             status: real.status,
+            profileCompleted: real.profileCompleted,
           });
           setStatus("authenticated");
           return;
@@ -212,14 +230,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setUser(GUEST_PROFILE);
-      setStatus("unauthenticated");
+      setStatus(
+        result.notLinked || !result.error ? "needs_linking" : "unauthenticated"
+      );
     }, 0);
 
     return () => {
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [telegramState]);
+  }, [telegramState, authNonce]);
 
   const roleOverride = user?.role ?? "VOLUNTEER";
 
@@ -246,6 +266,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const refreshAuth = () => {
+    setAuthNonce((current) => current + 1);
+  };
+
   const roleName = ROLE_NAMES[roleOverride] || roleOverride;
 
   return (
@@ -258,6 +282,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         telegram,
         switchRole,
         switchUser,
+        refreshAuth,
         isReady: status !== "loading",
       }}
     >
@@ -277,6 +302,7 @@ export function useAuth() {
       telegram: null,
       switchRole: () => {},
       switchUser: () => {},
+      refreshAuth: () => {},
       isReady: true,
     };
   }

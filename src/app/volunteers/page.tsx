@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import RoleGuard from "../components/RoleGuard";
-import { fetchUsers, statusToArabic, formatJoinDate } from "../lib/supabase/dto";
+import { fetchUsers, statusToArabic, formatJoinDate, updateUserField } from "../lib/supabase/dto";
 import { ROLE_NAMES } from "../lib/roles";
 import type { UserRole } from "../lib/roles";
 
@@ -96,6 +96,8 @@ export default function VolunteersPage() {
   const [selectedVolunteer, setSelectedVolunteer] =
     useState<Volunteer | null>(null);
   const [volunteers, setVolunteers] = useState<Volunteer[]>(mockVolunteers);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchUsers().then((users) => {
@@ -167,26 +169,28 @@ export default function VolunteersPage() {
     );
   }
 
-  function handleStatusChange(
+  async function handleStatusChange(
     volunteer: Volunteer,
     status: VolunteerStatus
   ) {
-    fetch(
-      `/api/users/${encodeURIComponent(volunteer.molimId)}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          field: "status",
-          value: statusToDbStatus(status),
-        }),
-      }
-    )
-      .catch(() => null)
-      .then(() => {
-        updateVolunteerStatus(volunteer.id, status);
-        setSelectedVolunteer({ ...volunteer, status });
-      });
+    if (saving) return;
+
+    setStatusError(null);
+    setSaving(true);
+    const result = await updateUserField(
+      volunteer.molimId,
+      "status",
+      statusToDbStatus(status)
+    );
+    setSaving(false);
+
+    if (!result.ok) {
+      setStatusError(result.error ?? "تعذر تحديث حالة المتطوع.");
+      return;
+    }
+
+    updateVolunteerStatus(volunteer.id, status);
+    setSelectedVolunteer({ ...volunteer, status });
   }
 
   return (
@@ -386,9 +390,10 @@ export default function VolunteersPage() {
                 <button
                   key={volunteer.id}
                   type="button"
-                  onClick={() =>
-                    setSelectedVolunteer(volunteer)
-                  }
+                  onClick={() => {
+                    setSelectedVolunteer(volunteer);
+                    setStatusError(null);
+                  }}
                   className="flex w-full items-start gap-3 border border-molim bg-molim-soft p-4 text-right transition hover:border-[#ed542f]"
                 >
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center bg-[#ed542f]/10 text-sm font-black text-[#ed542f]">
@@ -467,7 +472,7 @@ export default function VolunteersPage() {
             </p>
 
             <p className="mt-1 text-[11px] leading-5 text-molim-muted">
-              إنشاء دعوة لمتطوع جديد
+              إضافة عضو جديد وربطه
             </p>
           </button>
 
@@ -528,7 +533,10 @@ export default function VolunteersPage() {
 
                 <button
                   type="button"
-                  onClick={() => setSelectedVolunteer(null)}
+                  onClick={() => {
+                    setSelectedVolunteer(null);
+                    setStatusError(null);
+                  }}
                   className="flex h-9 w-9 items-center justify-center border border-molim text-lg text-molim-muted"
                   aria-label="إغلاق"
                 >
@@ -584,30 +592,38 @@ export default function VolunteersPage() {
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <button
                     type="button"
+                    disabled={saving}
                     onClick={() =>
                       handleStatusChange(
                         selectedVolunteer,
                         "نشط"
                       )
                     }
-                    className="h-12 border border-green-200 bg-green-50 text-xs font-black text-green-700 transition hover:bg-green-100"
+                    className="h-12 border border-green-200 bg-green-50 text-xs font-black text-green-700 transition hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     تفعيل
                   </button>
 
                   <button
                     type="button"
+                    disabled={saving}
                     onClick={() =>
                       handleStatusChange(
                         selectedVolunteer,
                         "موقوف"
                       )
                     }
-                    className="h-12 border border-red-200 bg-red-50 text-xs font-black text-red-700 transition hover:bg-red-100"
+                    className="h-12 border border-red-200 bg-red-50 text-xs font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     إيقاف
                   </button>
                 </div>
+
+                {statusError && (
+                  <p className="mt-3 border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+                    {statusError}
+                  </p>
+                )}
               </div>
 
               <div className="mt-5 space-y-2">
@@ -651,7 +667,10 @@ export default function VolunteersPage() {
 
               <button
                 type="button"
-                onClick={() => setSelectedVolunteer(null)}
+                onClick={() => {
+                  setSelectedVolunteer(null);
+                  setStatusError(null);
+                }}
                 className="mt-5 h-12 w-full bg-[#ed542f] text-sm font-black text-white"
               >
                 إغلاق الملف

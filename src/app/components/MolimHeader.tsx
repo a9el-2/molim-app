@@ -145,7 +145,7 @@ export default function MolimHeader() {
       href: "/certificate-requests",
     },
     {
-      title: "دعوات الانضمام",
+      title: "إضافة الأعضاء",
       href: "/invitations",
     },
     {
@@ -187,7 +187,7 @@ export default function MolimHeader() {
       href: "/certificate-requests",
     },
     {
-      title: "دعوات الانضمام",
+      title: "إضافة الأعضاء",
       href: "/invitations",
     },
     {

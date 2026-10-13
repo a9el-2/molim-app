@@ -40,17 +40,8 @@ export default function MembersPage() {
     expiresAt: string;
   } | null>(null);
 
-  const [form, setForm] = useState({
-    firstName: "",
-    fatherName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    departmentId: "",
-    role: "VOLUNTEER" as UserRole,
-    status: "pending",
-    telegramId: "",
-  });
+  const [departmentId, setDepartmentId] = useState("");
+  const [copiedMessage, setCopiedMessage] = useState(false);
 
   useEffect(() => {
     fetchUsers().then((users) => {
@@ -72,10 +63,16 @@ export default function MembersPage() {
 
     return members.filter((member) => {
       const matchesFilter =
-        activeFilter === "ط§ظ„ظƒظ„" || member.role === activeFilter;
+        activeFilter === roleFilters[0] || member.role === activeFilter;
+
+      const displayName =
+        member.profileCompleted === false
+          ? "لم يكمل بياناته بعد"
+          : member.name;
 
       const matchesSearch =
         !query ||
+        displayName.toLowerCase().includes(query) ||
         member.name.toLowerCase().includes(query) ||
         member.id.toLowerCase().includes(query) ||
         member.department.toLowerCase().includes(query);
@@ -85,47 +82,24 @@ export default function MembersPage() {
   }, [members, activeFilter, search]);
 
   function resetForm() {
-    setForm({
-      firstName: "",
-      fatherName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      departmentId: "",
-      role: "VOLUNTEER",
-      status: "pending",
-      telegramId: "",
-    });
+    setDepartmentId("");
     setCreateError("");
   }
 
   async function handleCreate() {
     if (creating) return;
 
-    if (!form.firstName.trim()) {
-      setCreateError("ط§ظ„ط§ط³ظ… ط§ظ„ط£ظˆظ„ ظ…ط·ظ„ظˆط¨.");
-      return;
-    }
-
     setCreating(true);
     setCreateError("");
 
     const result = await addMember({
-      firstName: form.firstName,
-      fatherName: form.fatherName,
-      lastName: form.lastName,
-      email: form.email,
-      phone: form.phone,
-      departmentId: form.departmentId || null,
-      role: form.role,
-      status: form.status,
-      telegramId: form.telegramId ? Number(form.telegramId) : undefined,
+      departmentId: departmentId || null,
     });
 
     setCreating(false);
 
     if (!result.member || !result.linkCode) {
-      setCreateError(result.error || "طھط¹ط°ط± ط¥ظ†ط´ط§ط، ط§ظ„ط¹ط¶ظˆ.");
+      setCreateError(result.error || "تعذر إنشاء العضو.");
       return;
     }
 
@@ -265,7 +239,9 @@ export default function MembersPage() {
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-sm font-black text-molim-foreground">
-                            {member.name}
+                            {member.profileCompleted === false
+                              ? "لم يكمل بياناته بعد"
+                              : member.name}
                           </h3>
 
                           <span className="border border-molim px-2 py-1 text-[10px] font-bold">
@@ -330,105 +306,20 @@ export default function MembersPage() {
                 </button>
               </div>
 
-              <div className="mt-5 space-y-3">
-                <Field
-                  label="ط§ظ„ط§ط³ظ… ط§ظ„ط£ظˆظ„"
-                  value={form.firstName}
-                  onChange={(value) =>
-                    setForm((prev) => ({ ...prev, firstName: value }))
-                  }
-                />
-                <Field
-                  label="ط§ط³ظ… ط§ظ„ط£ط¨"
-                  value={form.fatherName}
-                  onChange={(value) =>
-                    setForm((prev) => ({ ...prev, fatherName: value }))
-                  }
-                />
-                <Field
-                  label="ط§ط³ظ… ط§ظ„ط¹ط§ط¦ظ„ط©"
-                  value={form.lastName}
-                  onChange={(value) =>
-                    setForm((prev) => ({ ...prev, lastName: value }))
-                  }
-                />
-                <TelegramIdInput
-                  value={form.telegramId}
-                  onChange={(value) =>
-                    setForm((prev) => ({ ...prev, telegramId: value }))
-                  }
-                />
-
-                <Field
-                  label="ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ (ط§ط®طھظٹط§ط±ظٹ)"
-                  value={form.email}
-                  onChange={(value) =>
-                    setForm((prev) => ({ ...prev, email: value }))
-                  }
-                />
-
-                <Field
-                  label="ط±ظ‚ظ… ط§ظ„ط¬ظˆط§ظ„ (ط§ط®طھظٹط§ط±ظٹ)"
-                  value={form.phone}
-                  onChange={(value) =>
-                    setForm((prev) => ({ ...prev, phone: value }))
-                  }
-                />
-
+              <div className="mt-5 space-y-4">
                 <div>
-                  <label className="mb-2 block text-xs font-black">ط§ظ„ظ‚ط³ظ…</label>
+                  <label className="mb-2 block text-xs font-black">القسم</label>
                   <select
-                    value={form.departmentId}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        departmentId: event.target.value,
-                      }))
-                    }
+                    value={departmentId}
+                    onChange={(event) => setDepartmentId(event.target.value)}
                     className="h-12 w-full border border-molim bg-molim-surface px-4 text-sm outline-none focus:border-[#ed542f]"
                   >
-                    <option value="">ط¨ط¯ظˆظ† ظ‚ط³ظ…</option>
+                    <option value="">بدون قسم</option>
                     {departments.map((department) => (
                       <option key={department.id} value={department.id}>
                         {department.name}
                       </option>
                     ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-xs font-black">ط§ظ„ط¯ظˆط±</label>
-                  <select
-                    value={form.role}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        role: event.target.value as UserRole,
-                      }))
-                    }
-                    className="h-12 w-full border border-molim bg-molim-surface px-4 text-sm outline-none focus:border-[#ed542f]"
-                  >
-                    {(Object.keys(ROLE_NAMES) as UserRole[]).map((role) => (
-                      <option key={role} value={role}>
-                        {ROLE_NAMES[role]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-xs font-black">ط§ظ„ط­ط§ظ„ط©</label>
-                  <select
-                    value={form.status}
-                    onChange={(event) =>
-                      setForm((prev) => ({ ...prev, status: event.target.value }))
-                    }
-                    className="h-12 w-full border border-molim bg-molim-surface px-4 text-sm outline-none focus:border-[#ed542f]"
-                  >
-                    <option value="pending">ط¨ط§ظ†طھط¸ط§ط± ط§ظ„ط§ط¹طھظ…ط§ط¯</option>
-                    <option value="active">ظ†ط´ط·</option>
-                    <option value="inactive">ط؛ظٹط± ظ†ط´ط·</option>
-                    <option value="suspended">ظ…ظˆظ‚ظˆظپ</option>
                   </select>
                 </div>
 
@@ -444,7 +335,7 @@ export default function MembersPage() {
                   onClick={handleCreate}
                   className="h-12 w-full cursor-pointer bg-[#ed542f] text-sm font-black text-white hover:bg-[#d94725] disabled:cursor-wait disabled:opacity-70"
                 >
-                  {creating ? "ط¬ط§ط±ظٹ ط§ظ„ط¥ط¶ط§ظپط©..." : "ط¥ط¶ط§ظپط© ط§ظ„ط¹ط¶ظˆ"}
+                  {creating ? "جاري الإضافة..." : "إضافة العضو"}
                 </button>
               </div>
             </div>
@@ -454,47 +345,64 @@ export default function MembersPage() {
         {createdResult && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="w-full max-w-md border border-molim bg-molim-soft p-5 shadow-2xl">
-              <p className="text-xs text-molim-muted">طھظ…طھ ط§ظ„ط¥ط¶ط§ظپط©</p>
+              <p className="text-xs text-molim-muted">تمت الإضافة</p>
 
               <h2 className="mt-1 text-xl font-black text-molim-foreground">
-                ط±ظ…ط² ط±ط¨ط· ط§ظ„ط¹ط¶ظˆ
+                رمز ربط العضو
               </h2>
 
               <p className="mt-2 text-xs leading-6 text-molim-muted">
-                ط³ظ„ظ‘ظ… ظ‡ط°ط§ ط§ظ„ط±ظ…ط² ظ„ظ„ط¹ط¶ظˆ. ظٹظڈط³طھط®ط¯ظ… ظ…ط±ط© ظˆط§ط­ط¯ط© ظپظ‚ط· ظˆطھظ†طھظ‡ظٹ طµظ„ط§ط­ظٹطھظ‡
-                طھظ„ظ‚ط§ط¦ظٹظ‹ط§.
+                سلِّم هذا الرمز أو الرسالة الجاهزة للعضو لتسجيل الدخول وإكمال بياناته.
               </p>
 
-              <div className="mt-4 border border-molim bg-molim-surface p-4">
-                <p className="text-[10px] text-molim-muted">Molim ID</p>
-                <p className="mt-1 text-sm font-black">{createdResult.id}</p>
-              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="border border-molim bg-molim-surface p-4">
+                  <p className="text-[10px] text-molim-muted">معرّف العضو (Molim ID)</p>
+                  <p className="mt-1 text-sm font-black">{createdResult.id}</p>
+                </div>
 
-              <div className="mt-2 border border-[#ed542f]/30 bg-[#ed542f]/5 p-4">
-                <p className="text-[10px] text-molim-muted">ط±ظ…ط² ط§ظ„ط±ط¨ط·</p>
-
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <p className="text-lg font-black tracking-widest">
+                <div className="border border-[#ed542f]/30 bg-[#ed542f]/5 p-4">
+                  <p className="text-[10px] text-molim-muted">رمز الدخول</p>
+                  <p className="mt-1 text-sm font-black tracking-widest text-[#ed542f]">
                     {createdResult.linkCode}
                   </p>
-
-                  <button
-                    type="button"
-                    onClick={() => copyCode(createdResult.linkCode)}
-                    className="cursor-pointer border border-molim bg-molim-surface px-3 py-2 text-xs font-bold hover:border-[#ed542f]"
-                  >
-                    ظ†ط³ط®
-                  </button>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setCreatedResult(null)}
-                className="mt-4 h-12 w-full bg-[#ed542f] text-sm font-black text-white"
-              >
-                طھظ…
-              </button>
+              <div className="mt-3 border border-molim bg-molim-surface p-3">
+                <p className="mb-1 text-[10px] text-molim-muted">الرسالة الجاهزة للمتطوع:</p>
+                <p className="select-all border border-molim bg-molim-soft p-2.5 text-xs font-mono leading-5 text-molim-foreground">
+                  {`مرحباً، تم تسجيلك في مُلم. معرّفك: ${createdResult.id} ، رمز الدخول: ${createdResult.linkCode} (صالح 48 ساعة). افتح تطبيق مُلم في تيليجرام وأدخل الرمز ثم أكمل بياناتك.`}
+                </p>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const message = `مرحباً، تم تسجيلك في مُلم. معرّفك: ${createdResult.id} ، رمز الدخول: ${createdResult.linkCode} (صالح 48 ساعة). افتح تطبيق مُلم في تيليجرام وأدخل الرمز ثم أكمل بياناتك.`;
+                    copyCode(message);
+                    setCopiedMessage(true);
+                    setTimeout(() => setCopiedMessage(false), 2500);
+                  }}
+                  className="h-12 w-full cursor-pointer bg-[#ed542f] text-sm font-black text-white hover:bg-[#d94725]"
+                >
+                  {copiedMessage
+                    ? "✓ تم نسخ الرسالة بنجاح!"
+                    : "نسخ الرسالة الجاهزة للمتطوع"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreatedResult(null);
+                    setCopiedMessage(false);
+                  }}
+                  className="h-10 w-full cursor-pointer border border-molim bg-molim-surface text-xs font-bold text-molim-foreground hover:border-[#ed542f]"
+                >
+                  تم
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -517,58 +425,6 @@ function StatCard({
       <p className="text-[10px] font-bold text-molim-muted">{title}</p>
       <p className="mt-3 text-3xl font-black text-molim-foreground">{value}</p>
       <p className="mt-1 text-[10px] text-molim-muted">{note}</p>
-    </div>
-  );
-}
-
-type TelegramIdInputProps = {
-  value: string;
-  onChange: (value: string) => void;
-};
-
-function TelegramIdInput({ value, onChange }: TelegramIdInputProps) {
-  return (
-    <div>
-      <label className="mb-2 block text-xs font-black">
-        معرّف تيليجرام (اختياري)
-      </label>
-      <input
-        type="text"
-        inputMode="numeric"
-        dir="ltr"
-        value={value}
-        onChange={(event) => {
-          const numeric = event.target.value.replace(/\D/g, "");
-          onChange(numeric);
-        }}
-        placeholder="أرقام فقط"
-        className="h-12 w-full border border-molim bg-molim-surface px-4 text-sm text-right outline-none placeholder:text-molim-muted focus:border-[#ed542f]"
-      />
-      <p className="mt-1 text-[11px] leading-5 text-molim-muted">
-        اختياري. إذا تُرك فارغاً، فسيُصدر النظام رمز ربط للعضو.
-      </p>
-    </div>
-  );
-}
-
-type FieldProps = {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-};
-
-function Field({ label, value, onChange, placeholder }: FieldProps) {
-  return (
-    <div>
-      <label className="mb-2 block text-xs font-black">{label}</label>
-      <input
-        type="text"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        className="h-12 w-full border border-molim bg-molim-surface px-4 text-sm outline-none placeholder:text-molim-muted focus:border-[#ed542f]"
-      />
     </div>
   );
 }

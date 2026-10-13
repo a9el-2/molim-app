@@ -12,13 +12,7 @@ export type UserDTO = {
   joinedAt: string | null;
   createdAt: string | null;
   updatedAt: string | null;
-};
-
-export type InvitationDTO = {
-  valid: boolean;
-  message?: string;
-  departmentId?: string | null;
-  status?: string;
+  profileCompleted: boolean;
 };
 
 const STATUS_TO_ARABIC: Record<string, string> = {
@@ -65,6 +59,21 @@ export function formatJoinDate(value: string | null | undefined): string {
   return `${day} ${month} ${year}`;
 }
 
+function telegramInitData(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.Telegram?.WebApp?.initData || null;
+}
+
+function authHeaders(
+  extra?: Record<string, string>
+): Record<string, string> {
+  const initData = telegramInitData();
+  return {
+    ...(initData ? { "X-Telegram-Init-Data": initData } : {}),
+    ...(extra ?? {}),
+  };
+}
+
 async function parseJson<T>(response: Response): Promise<T | null> {
   try {
     return (await response.json()) as T;
@@ -82,9 +91,9 @@ export async function fetchUsers(
   }
   const query = params.toString();
 
-  const response = await fetch(`/api/users${query ? `?${query}` : ""}`).catch(
-    () => null
-  );
+  const response = await fetch(`/api/users${query ? `?${query}` : ""}`, {
+    headers: authHeaders(),
+  }).catch(() => null);
 
   if (!response || !response.ok) {
     return null;
@@ -95,9 +104,9 @@ export async function fetchUsers(
 }
 
 export async function fetchUser(id: string): Promise<UserDTO | null> {
-  const response = await fetch(`/api/users/${encodeURIComponent(id)}`).catch(
-    () => null
-  );
+  const response = await fetch(`/api/users/${encodeURIComponent(id)}`, {
+    headers: authHeaders(),
+  }).catch(() => null);
 
   if (!response || !response.ok) {
     return null;
@@ -107,73 +116,177 @@ export async function fetchUser(id: string): Promise<UserDTO | null> {
   return data?.user ?? null;
 }
 
-export async function verifyInvite(code: string): Promise<InvitationDTO> {
-  const response = await fetch("/api/invitations/verify", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code }),
+export type DepartmentDTO = {
+  id: string;
+  name: string;
+};
+
+export type UpdateUserFieldResult = {
+  ok: boolean;
+  status?: number;
+  error?: string;
+};
+
+export async function updateUserField(
+  id: string,
+  field: "status" | "role",
+  value: string
+): Promise<UpdateUserFieldResult> {
+  const response = await fetch(`/api/users/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ field, value }),
   }).catch(() => null);
 
   if (!response) {
-    return { valid: false, message: "تعذر الاتصال بالخادم. حاول مرة أخرى." };
+    return { ok: false, error: "تعذر الاتصال بالخادم. حاول مرة أخرى." };
   }
 
-  const data = await parseJson<InvitationDTO>(response);
+  const data = await parseJson<{ ok?: boolean; error?: string }>(response);
 
-  if (response.status === 503) {
-    return { valid: true, message: "" };
+  if (!response.ok || !data?.ok) {
+    const fallback =
+      response.status === 401
+        ? "تعذر التحقق من الجلسة. أعد فتح التطبيق وحاول مجددًا."
+        : response.status === 403
+          ? "لا تملك صلاحية هذا التعديل."
+          : response.status === 503
+            ? "الخادم غير مهيأ. حاول لاحقًا."
+            : "تعذر تحديث المستخدم.";
+    return {
+      ok: false,
+      status: response.status,
+      error: data?.error ?? fallback,
+    };
   }
 
-  return data ?? { valid: false, message: "رمز الدعوة غير صالح." };
+  return { ok: true, status: response.status };
+};
+
+export async function fetchDepartments(): Promise<DepartmentDTO[] | null> {
+  const response = await fetch("/api/departments", {
+    headers: authHeaders(),
+  }).catch(() => null);
+
+  if (!response || !response.ok) {
+    return null;
+  }
+
+  const data = await parseJson<{ departments?: DepartmentDTO[] }>(response);
+  return data?.departments ?? null;
 }
 
-export async function registerUser(payload: {
-  code: string;
-  firstName: string;
-  fatherName: string;
-  familyName: string;
-  email: string;
-  phone: string;
-  birthDate: string;
-  nationality: string;
-  residence: string;
-  countryCode?: string;
-  skills: string[];
-  tools: string[];
-  telegramId?: number;
-  telegramUsername?: string;
-}): Promise<{ demoMode: boolean; id?: string; error?: string }> {
-  const response = await fetch("/api/register", {
+export type AddMemberInput = {
+  departmentId?: string | null;
+  firstName?: string;
+  fatherName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  role?: UserRole;
+  status?: string;
+  telegramId?: number | string | null;
+  telegramUsername?: string | null;
+};
+
+export async function addMember(
+  payload: AddMemberInput
+): Promise<{
+  member?: { id: string };
+  linkCode?: string;
+  expiresAt?: string;
+  error?: string;
+}> {
+  const response = await fetch("/api/members", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   }).catch(() => null);
 
   if (!response) {
-    return { demoMode: false, error: "تعذر الاتصال بالخادم. حاول مرة أخرى." };
+    return { error: "تعذر الاتصال بالخادم. حاول مرة أخرى." };
   }
 
-  if (response.status === 503) {
-    return { demoMode: true };
+  const data = await parseJson<{
+    member?: { id: string };
+    linkCode?: string;
+    expiresAt?: string;
+    error?: string;
+  }>(response);
+
+  if (!response.ok || !data?.member) {
+    return { error: data?.error ?? "تعذر إنشاء العضو." };
   }
 
-  const data = await parseJson<{ user?: { id: string }; error?: string }>(
-    response
-  );
+  return data;
+}
 
-  if (!response.ok || !data?.user) {
-    return {
-      demoMode: false,
-      error: data?.error ?? "تعذر إتمام التسجيل. حاول مرة أخرى.",
-    };
+export async function linkAccount(
+  code: string
+): Promise<{ ok: boolean; userId?: string; error?: string }> {
+  const response = await fetch("/api/auth/link", {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ code }),
+  }).catch(() => null);
+
+  if (!response) {
+    return { ok: false, error: "تعذر الاتصال بالخادم. حاول مرة أخرى." };
   }
 
-  return { demoMode: false, id: data.user.id };
+  const data = await parseJson<{ userId?: string; error?: string }>(response);
+
+  if (!response.ok || !data?.userId) {
+    return { ok: false, error: data?.error ?? "تعذر ربط الحساب." };
+  }
+
+  return { ok: true, userId: data.userId };
+}
+
+export type CompleteProfileInput = {
+  firstName: string;
+  fatherName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  countryCode?: string;
+  birthDate?: string;
+  nationality?: string;
+  residence?: string;
+  skills?: string[];
+  tools?: string[];
+};
+
+export async function completeProfile(
+  payload: CompleteProfileInput
+): Promise<{ ok: boolean; error?: string }> {
+  const response = await fetch("/api/profile/complete", {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(payload),
+  }).catch(() => null);
+
+  if (!response) {
+    return { ok: false, error: "تعذر الاتصال بالخادم. حاول مرة أخرى." };
+  }
+
+  const data = await parseJson<{ ok?: boolean; error?: string }>(response);
+
+  if (!response.ok || !data?.ok) {
+    return { ok: false, error: data?.error ?? "تعذر حفظ بياناتك." };
+  }
+
+  return { ok: true };
 }
 
 export async function telegramAuth(
   initData: string
-): Promise<{ hasLinkedUser: boolean; userId?: string; error?: string }> {
+): Promise<{
+  hasLinkedUser: boolean;
+  userId?: string;
+  error?: string;
+  notLinked?: boolean;
+}> {
   const response = await fetch("/api/auth/telegram", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -192,6 +305,11 @@ export async function telegramAuth(
 
   if (response.status === 503) {
     return { hasLinkedUser: false };
+  }
+
+  // 404 = هوية Telegram موثقة لكنها غير مرتبطة بأي عضو بعد.
+  if (response.status === 404) {
+    return { hasLinkedUser: false, notLinked: true };
   }
 
   if (!response.ok || !data?.hasLinkedUser || !data.userId) {

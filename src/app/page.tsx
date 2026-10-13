@@ -38,12 +38,22 @@ export default function Home() {
   useEffect(() => {
     if (!isReady) return;
 
+    if (status === "needs_linking") {
+      router.replace("/link");
+      return;
+    }
+
     if (status === "unauthenticated") {
       router.replace("/join");
       return;
     }
 
     if (status === "authenticated") {
+      if (user && user.profileCompleted === false) {
+        router.replace("/complete-profile");
+        return;
+      }
+
       if (user && user.status !== "active") {
         router.replace("/account");
         return;

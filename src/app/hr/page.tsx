@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import RoleGuard from "../components/RoleGuard";
-import { fetchUsers, statusToArabic, formatDateShort } from "../lib/supabase/dto";
+import { fetchUsers, statusToArabic, formatDateShort, updateUserField } from "../lib/supabase/dto";
 import { ROLE_NAMES } from "../lib/roles";
 import type { UserRole } from "../lib/roles";
 
@@ -117,6 +117,9 @@ export default function HRPage() {
   const [selectedStatus, setSelectedStatus] =
     useState<VolunteerStatus>("نشط");
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     fetchUsers().then((users) => {
       if (!users) return;
@@ -181,26 +184,33 @@ export default function HRPage() {
   function openVolunteer(volunteer: HRVolunteer) {
     setSelectedVolunteer(volunteer);
     setSelectedStatus(volunteer.status);
+    setSaveError(null);
   }
 
   function closeVolunteer() {
     setSelectedVolunteer(null);
+    setSaveError(null);
   }
 
-  function saveStatus() {
-    if (!selectedVolunteer) return;
+  async function saveStatus() {
+    if (!selectedVolunteer || saving) return;
 
     const targetId = selectedVolunteer.molimId;
     const newStatus = selectedStatus;
 
-    fetch(`/api/users/${encodeURIComponent(targetId)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        field: "status",
-        value: statusToDB(newStatus),
-      }),
-    }).catch(() => null);
+    setSaveError(null);
+    setSaving(true);
+    const result = await updateUserField(
+      targetId,
+      "status",
+      statusToDB(newStatus)
+    );
+    setSaving(false);
+
+    if (!result.ok) {
+      setSaveError(result.error ?? "تعذر تحديث حالة العضوية.");
+      return;
+    }
 
     setVolunteers((current) =>
       current.map((volunteer) =>
@@ -361,8 +371,8 @@ export default function HRPage() {
           />
 
           <ActionCard
-            title="الدعوات"
-            description="إدارة دعوات الانضمام"
+            title="إضافة الأعضاء"
+            description="إضافة الأعضاء وتزويدهم برمز الربط"
             href="/invitations"
             icon="🎟️"
           />
@@ -624,12 +634,19 @@ export default function HRPage() {
               </div>
 
               {/* Save */}
+              {saveError && (
+                <p className="mb-3 border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {saveError}
+                </p>
+              )}
+
               <button
                 type="button"
                 onClick={saveStatus}
-                className="h-12 w-full cursor-pointer bg-[#ed542f] font-semibold text-white hover:bg-[#d94725]"
+                disabled={saving}
+                className="h-12 w-full cursor-pointer bg-[#ed542f] font-semibold text-white hover:bg-[#d94725] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                حفظ حالة العضوية
+                {saving ? "جارٍ الحفظ..." : "حفظ حالة العضوية"}
               </button>
 
               {/* Related Pages */}
