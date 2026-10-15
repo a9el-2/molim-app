@@ -13,10 +13,10 @@ import {
 } from "../lib/supabase/dto";
 import type { DepartmentDTO, UserDTO } from "../lib/supabase/dto";
 
-type RoleFilter = "ط§ظ„ظƒظ„" | UserRole;
+type RoleFilter = "الكل" | UserRole;
 
 const roleFilters: RoleFilter[] = [
-  "ط§ظ„ظƒظ„",
+  "الكل",
   "VOLUNTEER",
   "DEPARTMENT_HEAD",
   "HR",
@@ -27,7 +27,7 @@ const roleFilters: RoleFilter[] = [
 export default function MembersPage() {
   const [members, setMembers] = useState<UserDTO[]>([]);
   const [departments, setDepartments] = useState<DepartmentDTO[]>([]);
-  const [activeFilter, setActiveFilter] = useState<RoleFilter>("ط§ظ„ظƒظ„");
+  const [activeFilter, setActiveFilter] = useState<RoleFilter>("الكل");
   const [search, setSearch] = useState("");
 
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -136,61 +136,63 @@ export default function MembersPage() {
         <div className="relative mx-auto max-w-md px-1 pb-14 pt-3">
           <div className="mb-5 text-xs text-molim-muted">
             <Link href="/" className="hover:text-[#ed542f]">
-              ط§ظ„ط±ط¦ظٹط³ظٹط©
+              الرئيسية
             </Link>
-            <span className="mx-2">â†گ</span>
-            <span>ط§ظ„ظ…ظˆط§ط±ط¯ ط§ظ„ط¨ط´ط±ظٹط©</span>
-            <span className="mx-2">â†گ</span>
+            <span className="mx-2">←</span>
+            <Link href="/volunteers" className="hover:text-[#ed542f]">
+              المتطوعون
+            </Link>
+            <span className="mx-2">←</span>
             <span className="font-bold text-molim-foreground">
-              ط¥ط¶ط§ظپط© ط§ظ„ط£ط¹ط¶ط§ط،
+              إضافة الأعضاء
             </span>
           </div>
 
           <section className="flex items-end justify-between gap-4 border-b border-molim pb-5">
             <div>
-              <p className="text-sm font-bold text-[#ed542f]">ط§ظ„ظ…ظˆط§ط±ط¯ ط§ظ„ط¨ط´ط±ظٹط©</p>
+              <p className="text-sm font-bold text-[#ed542f]">الموارد البشرية</p>
 
               <h1 className="mt-2 text-3xl font-black text-molim-foreground">
-                ط¥ط¶ط§ظپط© ط§ظ„ط£ط¹ط¶ط§ط،
+                إضافة الأعضاء
               </h1>
 
               <p className="mt-3 text-sm leading-7 text-molim-muted">
-                ط¥ط¶ط§ظپط© ط§ظ„ط£ط¹ط¶ط§ط، ظٹط¯ظˆظٹظ‹ط§ ظˆطھط²ظˆظٹط¯ظ‡ظ… ط¨ط±ظ…ط² ط±ط¨ط· ظ„ظ…ط±ط© ظˆط§ط­ط¯ط©.
+                إضافة الأعضاء والمتطوعين يدوياً وتزويدهم برمز ربط لمرة واحدة.
               </p>
             </div>
 
             <button
               type="button"
               onClick={() => setShowCreateForm(true)}
-              className="shrink-0 bg-[#ed542f] px-4 py-3 text-xs font-black text-white"
+              className="shrink-0 bg-[#ed542f] px-4 py-3 text-xs font-black text-white transition hover:bg-[#d94725]"
             >
-              + ط¹ط¶ظˆ
+              + إضافة متطوع
             </button>
           </section>
 
           <section className="mt-6 grid grid-cols-2 gap-2">
-            <StatCard title="ط§ظ„ط¥ط¬ظ…ط§ظ„ظٹ" value={members.length} note="ظƒظ„ ط§ظ„ط£ط¹ط¶ط§ط،" />
-            <StatCard title="ظ†ط´ط·" value={activeCount} note="ط­ط³ط§ط¨ط§طھ ظ…ظپط¹ظ‘ظ„ط©" />
+            <StatCard title="الإجمالي" value={members.length} note="كل الأعضاء" />
+            <StatCard title="نشط" value={activeCount} note="حسابات مفعّلة" />
             <StatCard
-              title="ط¨ط§ظ†طھط¸ط§ط± ط§ظ„ط§ط¹طھظ…ط§ط¯"
+              title="بانتظار الاعتماد"
               value={pendingCount}
-              note="ظ‚ظٹط¯ ط§ظ„ظ…ط±ط§ط¬ط¹ط©"
+              note="قيد المراجعة"
             />
             <StatCard
-              title="ظ„ظ… ظٹظƒظ…ظ„ظˆط§ ظ…ظ„ظپظ‡ظ…"
+              title="لم يكملوا ملفهم"
               value={incompleteCount}
-              note="ط¨ط§ظ†طھط¸ط§ط± ط¥ظƒظ…ط§ظ„ ط§ظ„ط¨ظٹط§ظ†ط§طھ"
+              note="بانتظار إكمال البيانات"
             />
           </section>
 
           <section className="mt-7 border border-molim bg-molim-soft p-5">
-            <label className="mb-2 block text-xs font-black">ط§ظ„ط¨ط­ط«</label>
+            <label className="mb-2 block text-xs font-black">البحث</label>
 
             <input
               type="text"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="ط§ط¨ط­ط« ط¨ط§ظ„ط§ط³ظ… ط£ظˆ Molim ID ط£ظˆ ط§ظ„ظ‚ط³ظ…..."
+              placeholder="ابحث بالاسم أو Molim ID أو القسم..."
               className="h-12 w-full border border-molim bg-molim-surface px-4 text-sm outline-none focus:border-[#ed542f]"
             />
 
@@ -206,7 +208,7 @@ export default function MembersPage() {
                       : "border-molim bg-molim-surface text-molim-foreground hover:border-[#ed542f]"
                   }`}
                 >
-                  {filter === "ط§ظ„ظƒظ„" ? "ط§ظ„ظƒظ„" : ROLE_NAMES[filter]}
+                  {filter === "الكل" ? "الكل" : ROLE_NAMES[filter]}
                 </button>
               ))}
             </div>
@@ -215,17 +217,17 @@ export default function MembersPage() {
           <section className="mt-7">
             <div className="mb-3 flex items-end justify-between">
               <h2 className="text-lg font-black text-molim-foreground">
-                ط§ظ„ط£ط¹ط¶ط§ط،
+                الأعضاء
               </h2>
 
-              <p className="text-xs text-molim-muted">{filtered.length} ط¹ط¶ظˆ</p>
+              <p className="text-xs text-molim-muted">{filtered.length} عضو</p>
             </div>
 
             {filtered.length === 0 ? (
               <div className="border border-dashed border-molim bg-molim-soft p-8 text-center">
-                <p className="font-bold">ظ„ط§ ظٹظˆط¬ط¯ ط£ط¹ط¶ط§ط،</p>
+                <p className="font-bold">لا يوجد أعضاء</p>
                 <p className="mt-2 text-xs text-molim-muted">
-                  ظ„ظ… طھطھظ… ط¥ط¶ط§ظپط© ط£ظٹ ط¹ط¶ظˆ ظ…ط·ط§ط¨ظ‚ ط¨ط¹ط¯.
+                  لم تتم إضافة أي عضو مطابق بعد.
                 </p>
               </div>
             ) : (
@@ -250,7 +252,7 @@ export default function MembersPage() {
 
                           {member.profileCompleted === false && (
                             <span className="border border-yellow-200 bg-yellow-50 px-2 py-1 text-[10px] font-bold text-yellow-700">
-                              ط¨ط§ظ†طھط¸ط§ط± ط¥ظƒظ…ط§ظ„ ط§ظ„ظ…ظ„ظپ
+                              بانتظار إكمال الملف
                             </span>
                           )}
                         </div>
@@ -270,7 +272,7 @@ export default function MembersPage() {
 
           <footer className="mt-8 border-t border-molim pt-5 text-center">
             <p className="text-[10px] text-molim-muted">
-              ظ…ظڈظ„ظ… â€” ط¥ط¯ط§ط±ط© ط§ظ„ط£ط¹ط¶ط§ط،
+              مُلم — إدارة الأعضاء
             </p>
           </footer>
         </div>
@@ -288,9 +290,9 @@ export default function MembersPage() {
             <div className="max-h-[90vh] w-full max-w-md overflow-y-auto border border-molim bg-molim-soft p-5 shadow-2xl">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs text-molim-muted">ط§ظ„ط£ط¹ط¶ط§ط،</p>
+                  <p className="text-xs text-molim-muted">الأعضاء</p>
                   <h2 className="mt-1 text-xl font-black text-molim-foreground">
-                    ط¥ط¶ط§ظپط© ط¹ط¶ظˆ ط¬ط¯ظٹط¯
+                    إضافة عضو جديد
                   </h2>
                 </div>
 
@@ -302,7 +304,7 @@ export default function MembersPage() {
                   }}
                   className="cursor-pointer border border-molim bg-molim-surface px-3 py-2 hover:border-[#ed542f]"
                 >
-                  âœ•
+                  ✕
                 </button>
               </div>
 
@@ -345,7 +347,7 @@ export default function MembersPage() {
         {createdResult && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="w-full max-w-md border border-molim bg-molim-soft p-5 shadow-2xl">
-              <p className="text-xs text-molim-muted">تمت الإضافة</p>
+              <p className="text-xs text-molim-muted">تمت الإضافة بنجاح</p>
 
               <h2 className="mt-1 text-xl font-black text-molim-foreground">
                 رمز ربط العضو
@@ -428,4 +430,3 @@ function StatCard({
     </div>
   );
 }
-
