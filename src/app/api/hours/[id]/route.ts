@@ -159,7 +159,7 @@ export async function PATCH(
     .eq("user_id", auth.user.id)
     .in("status", ["in_review", "rejected"])
     .select()
-    .single();
+    .maybeSingle();
 
   // [1] إذا لم يُرجع التحديث أي صف: السجل تغيّر حالته (اعتُمد للتو)
   if (updateError || !updatedRecord) {
@@ -210,6 +210,13 @@ export async function PATCH(
         "[PATCH /api/hours/%s] فشل التراجع عن التعديل بعد خطأ في سجل التدقيق:",
         id,
         rollbackError
+      );
+      return NextResponse.json(
+        {
+          error:
+            "تعذر توثيق العملية وتعذر التراجع عن التعديل. تواصل مع الإدارة.",
+        },
+        { status: 500 }
       );
     }
 
