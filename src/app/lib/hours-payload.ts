@@ -147,7 +147,92 @@ export function buildHoursUpdatePayload(
   };
 }
 
-export type AuditAction = "submit_hours" | "edit_hours" | "self_approve_hours";
+export type HoursPolicyStatus = "pending" | "approved" | "rejected";
+
+/**
+ * تحويل حالة الساعات من صيغة قاعدة البيانات (in_review, approved, rejected)
+ * إلى صيغة سياسة النظام (pending, approved, rejected).
+ */
+export function toPolicyStatus(dbStatus: string | null | undefined): HoursPolicyStatus {
+  if (dbStatus === "in_review") return "pending";
+  if (dbStatus === "approved") return "approved";
+  if (dbStatus === "rejected") return "rejected";
+  return "pending";
+}
+
+/**
+ * تحويل حالة الساعات من صيغة سياسة النظام (pending, approved, rejected)
+ * إلى صيغة قاعدة البيانات (in_review, approved, rejected).
+ */
+export function toDbStatus(policyStatus: string | null | undefined): HoursDbStatus {
+  if (policyStatus === "pending") return "in_review";
+  if (policyStatus === "approved") return "approved";
+  if (policyStatus === "rejected") return "rejected";
+  return "in_review";
+}
+
+export type BuildHoursReviewInput = {
+  action: "approve" | "reject";
+  submittedHours: number;
+  approvedHours?: number | null | undefined;
+  note?: string | null | undefined;
+  reviewerId: string;
+  reviewedAt?: string;
+};
+
+export type HoursReviewPayload = {
+  status: "approved" | "rejected";
+  approved_hours: number | null;
+  reviewed_by: string;
+  reviewed_at: string;
+  review_notes: string | null;
+  updated_at: string;
+};
+
+/**
+ * بناء حمولة مراجعة الساعات (اعتماد أو رفض) لتحديث جدول hours_logs.
+ * - عند الاعتماد: status=approved، approved_hours، reviewed_by، reviewed_at، review_notes.
+ * - عند الرفض: status=rejected، approved_hours=null، review_notes إجباري.
+ * - لا تمس submitted_hours ولا is_self_approved.
+ */
+export function buildHoursReviewPayload(
+  input: BuildHoursReviewInput
+): HoursReviewPayload {
+  const timestamp = input.reviewedAt ?? new Date().toISOString();
+  const notes = typeof input.note === "string" ? input.note.trim() : null;
+
+  if (input.action === "reject") {
+    return {
+      status: "rejected",
+      approved_hours: null,
+      reviewed_by: input.reviewerId,
+      reviewed_at: timestamp,
+      review_notes: notes || null,
+      updated_at: timestamp,
+    };
+  }
+
+  const finalApprovedHours =
+    input.approvedHours !== undefined && input.approvedHours !== null
+      ? Number(input.approvedHours)
+      : input.submittedHours;
+
+  return {
+    status: "approved",
+    approved_hours: finalApprovedHours,
+    reviewed_by: input.reviewerId,
+    reviewed_at: timestamp,
+    review_notes: notes || null,
+    updated_at: timestamp,
+  };
+}
+
+export type AuditAction =
+  | "submit_hours"
+  | "edit_hours"
+  | "self_approve_hours"
+  | "approve_hours"
+  | "reject_hours";
 
 export type BuildAuditLogInput = {
   actorId: string;

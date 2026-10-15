@@ -4,7 +4,10 @@ import assert from "node:assert/strict";
 import {
   buildHoursInsertPayload,
   buildHoursUpdatePayload,
+  buildHoursReviewPayload,
   buildAuditLogPayload,
+  toPolicyStatus,
+  toDbStatus,
 } from "../src/app/lib/hours-payload.ts";
 
 test("بناء حمولة الإدخال: تجاهل أي قيم حساسة أو مشبوهة من العميل والالتزام بقيم الخادم", () => {
@@ -173,4 +176,115 @@ test("سجل التدقيق: بناء حمولة صحيحة للإجراء self_
   assert.equal(audit.action, "self_approve_hours");
   assert.equal(audit.details, null);
   assert.equal(audit.after_data.is_self_approved, true);
+});
+
+// ==========================================
+// اختبارات التحويل بين حالات القاعدة والسياسة
+// ==========================================
+
+test("تحويل الحالة: toPolicyStatus يحول in_review إلى pending ويحافظ على approved و rejected", () => {
+  assert.equal(toPolicyStatus("in_review"), "pending");
+  assert.equal(toPolicyStatus("approved"), "approved");
+  assert.equal(toPolicyStatus("rejected"), "rejected");
+  assert.equal(toPolicyStatus("unknown"), "pending");
+  assert.equal(toPolicyStatus(null), "pending");
+  assert.equal(toPolicyStatus(undefined), "pending");
+});
+
+test("تحويل الحالة: toDbStatus يحول pending إلى in_review ويحافظ على approved و rejected", () => {
+  assert.equal(toDbStatus("pending"), "in_review");
+  assert.equal(toDbStatus("approved"), "approved");
+  assert.equal(toDbStatus("rejected"), "rejected");
+  assert.equal(toDbStatus("unknown"), "in_review");
+  assert.equal(toDbStatus(null), "in_review");
+  assert.equal(toDbStatus(undefined), "in_review");
+});
+
+// ==========================================
+// اختبارات بناء حمولة مراجعة الساعات (buildHoursReviewPayload)
+// ==========================================
+
+test("بناء حمولة المراجعة: اعتماد الساعات بنفس عدد الساعات المقدمة بدون تعديل", () => {
+  const payload = buildHoursReviewPayload({
+    action: "approve",
+    submittedHours: 4,
+    reviewerId: "reviewer-1",
+    reviewedAt: "2026-10-15T12:00:00.000Z",
+  });
+
+  assert.equal(payload.status, "approved");
+  assert.equal(payload.approved_hours, 4);
+  assert.equal(payload.reviewed_by, "reviewer-1");
+  assert.equal(payload.reviewed_at, "2026-10-15T12:00:00.000Z");
+  assert.equal(payload.review_notes, null);
+  assert.ok(payload.updated_at);
+});
+
+test("بناء حمولة المراجعة: اعتماد الساعات مع تعديل عدد الساعات المعتمدة وملاحظة", () => {
+  const payload = buildHoursReviewPayload({
+    action: "approve",
+    submittedHours: 5,
+    approvedHours: 3.5,
+    note: "تم استبعاد ساعة الاستراحة",
+    reviewerId: "admin-99",
+  });
+
+  assert.equal(payload.status, "approved");
+  assert.equal(payload.approved_hours, 3.5);
+  assert.equal(payload.reviewed_by, "admin-99");
+  assert.equal(payload.review_notes, "تم استبعاد ساعة الاستراحة");
+});
+
+test("بناء حمولة المراجعة: رفض الساعات يفرغ approved_hours ويحفظ الملاحظة الإجبارية", () => {
+  const payload = buildHoursReviewPayload({
+    action: "reject",
+    submittedHours: 6,
+    approvedHours: 6, // يجب تجاهلها عند الرفض
+    note: "المهمة غير مكتملة ولم تسلم المخرجات",
+    reviewerId: "hr-01",
+    reviewedAt: "2026-10-15T14:30:00.000Z",
+  });
+
+  assert.equal(payload.status, "rejected");
+  assert.equal(payload.approved_hours, null);
+  assert.equal(payload.reviewed_by, "hr-01");
+  assert.equal(payload.reviewed_at, "2026-10-15T14:30:00.000Z");
+  assert.equal(payload.review_notes, "المهمة غير مكتملة ولم تسلم المخرجات");
+});
+
+// ==========================================
+// اختبارات سجل التدقيق لإجراءات المراجعة
+// ==========================================
+
+test("سجل التدقيق: بناء حمولة صحيحة لإجراء approve_hours و reject_hours", () => {
+  const approveAudit = buildAuditLogPayload({
+    actorId: "rev-1",
+    action: "approve_hours",
+    targetId: "hour-10",
+    targetUserId: "vol-2",
+    departmentId: "dept-media",
+    beforeData: { status: "in_review", submitted_hours: 4 },
+    afterData: { status: "approved", approved_hours: 4 },
+    details: "اعتماد الساعات",
+  });
+
+  assert.equal(approveAudit.action, "approve_hours");
+  assert.equal(approveAudit.actor_id, "rev-1");
+  assert.equal(approveAudit.target_user_id, "vol-2");
+  assert.equal(approveAudit.category, "hours");
+
+  const rejectAudit = buildAuditLogPayload({
+    actorId: "rev-2",
+    action: "reject_hours",
+    targetId: "hour-11",
+    targetUserId: "vol-3",
+    departmentId: "dept-research",
+    beforeData: { status: "in_review", submitted_hours: 5 },
+    afterData: { status: "rejected", approved_hours: null },
+    details: "رفض الساعات",
+  });
+
+  assert.equal(rejectAudit.action, "reject_hours");
+  assert.equal(rejectAudit.actor_id, "rev-2");
+  assert.equal(rejectAudit.target_user_id, "vol-3");
 });
