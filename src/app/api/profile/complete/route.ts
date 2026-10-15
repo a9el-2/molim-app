@@ -50,18 +50,26 @@ export async function POST(request: Request) {
     );
   }
 
+  const email = (body.email ?? "").trim();
+  if (email && !/^[^@\s]+@[^@\s]+$/.test(email)) {
+    return NextResponse.json(
+      { error: "صيغة البريد الإلكتروني غير صحيحة." },
+      { status: 400 }
+    );
+  }
+
   const updatePayload: Record<string, unknown> = {
     first_name: firstName,
     father_name: (body.fatherName ?? "").trim() || null,
     last_name: (body.lastName ?? "").trim() || null,
-    email: (body.email ?? "").trim() || null,
+    email: email || null,
     phone: (body.phone ?? "").trim() || null,
     country_code: (body.countryCode ?? "").trim() || null,
     birth_date: body.birthDate || null,
     nationality: (body.nationality ?? "").trim() || null,
     residence: (body.residence ?? "").trim() || null,
-    skills: Array.isArray(body.skills) && body.skills.length ? body.skills : null,
-    tools: Array.isArray(body.tools) && body.tools.length ? body.tools : null,
+    skills: Array.isArray(body.skills) && body.skills.length ? body.skills : [],
+    tools: Array.isArray(body.tools) && body.tools.length ? body.tools : [],
     profile_completed: true,
   };
 
