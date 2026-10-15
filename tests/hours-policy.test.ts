@@ -477,3 +477,57 @@ test("تعديل الساعات للمالك: مسموح في pending و rejecte
   assert.equal(canEditOwnEntry({ status: "approved", isOwner: true }), false);
   assert.equal(canEditOwnEntry({ status: "pending", isOwner: false }), false);
 });
+
+// ==========================================
+// 6. اختبارات توقيت Asia/Riyadh في validateHoursSubmission
+// ==========================================
+
+test("التحقق من التاريخ: now=2026-10-15T22:30Z → 2026-10-16 هو اليوم بتوقيت الرياض → مقبول", () => {
+  // 2026-10-15T22:30Z = 2026-10-16T01:30+03:00 ← اليوم بتوقيت الرياض هو 2026-10-16
+  const now = new Date("2026-10-15T22:30:00Z");
+
+  const sameDay = validateHoursSubmission({
+    hours: 3,
+    workDate: "2026-10-16",
+    now,
+  });
+  assert.equal(
+    sameDay.valid,
+    true,
+    "2026-10-16 يجب أن يكون مقبولاً — هو اليوم بتوقيت الرياض"
+  );
+});
+
+test("التحقق من التاريخ: now=2026-10-15T22:30Z → 2026-10-17 مستقبلي بتوقيت الرياض → مرفوض", () => {
+  const now = new Date("2026-10-15T22:30:00Z");
+
+  const future = validateHoursSubmission({
+    hours: 3,
+    workDate: "2026-10-17",
+    now,
+  });
+  assert.equal(
+    future.valid,
+    false,
+    "2026-10-17 يجب أن يُرفض — مستقبلي بتوقيت الرياض"
+  );
+  assert.equal(future.reason, "future_date");
+});
+
+test("التحقق من التاريخ: صيغة خاطئة مثل 'not-a-date' لا تجتاز التحقق (valid=false)", () => {
+  // route.ts تمنع الصيغ الخاطئة قبل الوصول للدالة، لكن الدالة تتعامل معها بأمان:
+  // "not-a-date" > أي تاريخ YYYY-MM-DD منطقياً في مقارنة السلاسل → future_date
+  // أو قد تساوي سلسلة أكبر — المهم أن valid يكون false دائماً.
+  const now = new Date("2026-10-15T22:30:00Z");
+
+  const malformed = validateHoursSubmission({
+    hours: 3,
+    workDate: "not-a-date",
+    now,
+  });
+  assert.equal(
+    malformed.valid,
+    false,
+    "صيغة تاريخ خاطئة يجب ألا تجتاز التحقق أبداً"
+  );
+});

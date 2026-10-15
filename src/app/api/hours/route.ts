@@ -65,14 +65,32 @@ export async function POST(request: Request) {
   const rawDate = body.date ?? body.workDate ?? body.work_date;
   const rawDescription =
     body.description ?? body.note ?? body.notes ?? body.task;
-  const rawTaskId = body.taskId ?? body.task_id;
 
   const hours = typeof rawHours === "number" ? rawHours : Number(rawHours);
   const workDate = typeof rawDate === "string" ? rawDate.trim() : "";
   const description =
     typeof rawDescription === "string" ? rawDescription.trim() : "";
-  const taskId =
-    typeof rawTaskId === "string" && rawTaskId.trim() ? rawTaskId.trim() : null;
+
+  // TODO: تفعيل taskId بعد ربط المهام — يجب التحقق من أن المهمة موجودة
+  //       وأن المستخدم مخوَّل بها (ينتمي إلى نفس القسم أو مُسنَدة إليه مباشرةً).
+  //       حتى ذلك الحين نتجاهل أي قيمة taskId قادمة من العميل تماماً.
+  const taskId: string | null = null;
+
+  // ── التحقق من صيغة التاريخ قبل أي استعلام لقاعدة البيانات ──────────────
+  // يجب أن يكون بصيغة YYYY-MM-DD وتاريخاً تقويمياً صالحاً.
+  const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  if (!ISO_DATE_RE.test(workDate)) {
+    return NextResponse.json({ error: "تاريخ غير صالح." }, { status: 400 });
+  }
+  // نتحقق من أنه تاريخ تقويمي حقيقي (مثلاً 2026-02-30 غير صالح)
+  const parsedDate = new Date(workDate + "T00:00:00Z");
+  if (
+    Number.isNaN(parsedDate.getTime()) ||
+    parsedDate.toISOString().slice(0, 10) !== workDate
+  ) {
+    return NextResponse.json({ error: "تاريخ غير صالح." }, { status: 400 });
+  }
+  // ────────────────────────────────────────────────────────────────────────
 
   // جلب قسم المستخدم من جدول users في القاعدة لضمان الدقة
   const { data: userRow, error: userError } = await supabase

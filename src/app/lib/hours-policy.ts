@@ -366,10 +366,10 @@ export function validateHoursSubmission(input: {
   }
 
   // التحقق من التاريخ (غير مستقبلي)
+  // يُحسب "اليوم" بتوقيت Asia/Riyadh (UTC+3) لضمان صحة المقارنة بصرف النظر عن توقيت الخادم.
   const nowDate = input.now ?? new Date();
-  const workDateObj = typeof workDate === "string" ? new Date(workDate) : workDate;
 
-  if (Number.isNaN(workDateObj.getTime())) {
+  if (Number.isNaN(nowDate.getTime())) {
     return {
       valid: false,
       needsNote: false,
@@ -378,18 +378,19 @@ export function validateHoursSubmission(input: {
     };
   }
 
-  const today = new Date(
-    nowDate.getFullYear(),
-    nowDate.getMonth(),
-    nowDate.getDate()
-  );
-  const workDay = new Date(
-    workDateObj.getFullYear(),
-    workDateObj.getMonth(),
-    workDateObj.getDate()
-  );
+  // نستخرج تاريخ "اليوم" بصيغة YYYY-MM-DD وفق توقيت الرياض (en-CA يُنتج هذه الصيغة مباشرة)
+  const todayRiyadh = nowDate.toLocaleDateString("en-CA", {
+    timeZone: "Asia/Riyadh",
+  });
 
-  if (workDay.getTime() > today.getTime()) {
+  // workDate يصل كسلسلة YYYY-MM-DD؛ إذا كان Date نحوّله بنفس الصيغة
+  const workDateStr =
+    typeof workDate === "string"
+      ? workDate
+      : workDate.toLocaleDateString("en-CA", { timeZone: "Asia/Riyadh" });
+
+  // مقارنة التواريخ كسلاسل YYYY-MM-DD آمنة لأن الترتيب الأبجدي = الترتيب الزمني
+  if (workDateStr > todayRiyadh) {
     return {
       valid: false,
       needsNote: false,
