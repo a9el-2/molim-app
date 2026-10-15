@@ -9,6 +9,11 @@
 --   has_sequence_privilege, to_regclass/to_regprocedure, DO/format.
 -- الافتراضات المعلّمة بـ [VERIFY] يجب التحقق منها قراءةً قبل أي تنفيذ.
 --
+-- إصلاحات v5:
+--   * قبول فهرس users_telegram_id_key سواء كان غير جزئي (القائم) أو جزئياً بشرط NOT NULL.
+--   * سحب الصلاحيات التلقائية في Supabase للدالة والتسلسل من anon و authenticated والتحقق من سحبها.
+--   * عدم إسقاط users_telegram_id_key في التراجع (Rollback) لأنه كان موجوداً قبل الترحيل.
+--
 -- إصلاحات v4:
 --   * تحقق جاهزية الفهارس (indisvalid/indisready/indislive/indnatts) وخصائصها.
 --   * مطابقة شرط الفهرس الجزئي بشكل معياري دقيق لا تقريبي.
@@ -348,6 +353,18 @@ REVOKE ALL ON FUNCTION public.next_molim_id() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.next_molim_id() TO service_role;
 REVOKE ALL ON SEQUENCE public.molim_id_seq FROM PUBLIC;
 
+-- سحب الصلاحيات التلقائية التي يمنحها Supabase للأدوار anon و authenticated إن وُجدت
+DO $$
+DECLARE
+  r text;
+BEGIN
+  FOR r IN SELECT rolname FROM pg_roles WHERE rolname IN ('anon', 'authenticated')
+  LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION public.next_molim_id() FROM %I', r);
+    EXECUTE format('REVOKE ALL ON SEQUENCE public.molim_id_seq FROM %I', r);
+  END LOOP;
+END $$;
+
 -- 1.8 تحقق فعلي: وجود service_role، ووحدة مالك الدالة/التسلسل، والامتيازات.
 --     SECURITY DEFINER يعمل بصلاحيات المالك، لذا يجب أن يملك مالك الدالة التسلسل.
 --     ⚠ ALTER FUNCTION ... OWNER TO يتطلب أن يكون دور الترحيل (current_user) عضوًا
@@ -361,6 +378,7 @@ DO $$
 DECLARE
   fn_owner  text;
   seq_owner text;
+  chk_role  text;
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN
     RAISE EXCEPTION 'الدور service_role غير موجود — أوقف الترحيل للمراجعة';
@@ -388,13 +406,25 @@ BEGIN
   IF NOT has_sequence_privilege(seq_owner, 'public.molim_id_seq'::regclass, 'USAGE') THEN
     RAISE EXCEPTION 'مالك التسلسل % لا يملك USAGE على التسلسل — أوقف الترحيل للمراجعة', seq_owner;
   END IF;
+
+  -- التحقق من سحب الصلاحيات من anon و authenticated إن وُجدا
+  FOR chk_role IN SELECT rolname FROM pg_roles WHERE rolname IN ('anon', 'authenticated')
+  LOOP
+    IF has_function_privilege(chk_role, 'public.next_molim_id()'::regprocedure, 'EXECUTE') THEN
+      RAISE EXCEPTION 'الدور % يملك صلاحية EXECUTE على public.next_molim_id() — أوقف الترحيل للمراجعة', chk_role;
+    END IF;
+
+    IF has_sequence_privilege(chk_role, 'public.molim_id_seq'::regclass, 'USAGE') THEN
+      RAISE EXCEPTION 'الدور % يملك صلاحية USAGE على public.molim_id_seq — أوقف الترحيل للمراجعة', chk_role;
+    END IF;
+  END LOOP;
 END $$;
 
 -- 1.9 الفهارس: تحقّق كامل من الخصائص والجاهزية عبر الكتالوج.
 --     يشمل: indisvalid/indisready/indislive (الجاهزية)، indnatts/indnkeyatts (عمود
---     واحد بلا أعمدة مُضمّنة INCLUDE)، indisunique، amname=btree، والعمود المفتاحي،
---     وشرط الفهرس الجزئي بمطابقة معيارية دقيقة (تطبيع المسافات وحالة الأحرف، ثم
---     مطابقة نمط صارم يسمح فقط بوجود/غياب قوسين خارجيين — لا بحث LIKE تقريبي).
+--     واحد بلا أعمدة مُضمّنة INCLUDE)، indisunique، amname=btree، والعمود المفتاحي.
+--     بالنسبة لفهرس users_telegram_id_key: يُقبل سواء كان غير جزئي (التعريف القائم في القاعدة)
+--     أو جزئيًا بشرط telegram_id IS NOT NULL.
 DO $$
 DECLARE
   idx      record;
@@ -428,7 +458,8 @@ BEGIN
     END IF;
   END IF;
 
-  -- فهرس telegram_id: صالح وجاهز، فريد، جزئي، عمود واحد، btree، والشرط مطابق.
+  -- فهرس telegram_id: صالح وجاهز، فريد، عمود واحد (telegram_id)، btree،
+  -- ويُقبل سواء كان غير جزئي (التعريف الحالي في القاعدة) أو جزئيًا بشرط telegram_id IS NOT NULL.
   SELECT i.indisunique, i.indisvalid, i.indisready, i.indislive,
          i.indpred IS NOT NULL AS is_partial,
          i.indnatts, i.indnkeyatts, i.indkey[0] AS key0, i.indrelid, am.amname,
@@ -447,10 +478,10 @@ BEGIN
     SELECT attname INTO col_name
     FROM pg_attribute WHERE attrelid=idx.indrelid AND attnum=idx.key0;
     IF NOT idx.indisvalid OR NOT idx.indisready OR NOT idx.indislive
-       OR NOT idx.indisunique OR NOT idx.is_partial
+       OR NOT idx.indisunique
        OR idx.indnatts <> 1 OR idx.indnkeyatts <> 1
        OR col_name IS DISTINCT FROM 'telegram_id' OR idx.amname <> 'btree'
-       OR idx.prednorm !~ '^\(?telegram_idisnotnull\)?$' THEN
+       OR (idx.is_partial AND idx.prednorm !~ '^\(?telegram_idisnotnull\)?$') THEN
       RAISE EXCEPTION
         'تعارض/عدم جاهزية في users_telegram_id_key (valid=%, ready=%, live=%, unique=%, partial=%, atts=%, keys=%, col=%, am=%, pred=%) — أوقف الترحيل للمراجعة',
         idx.indisvalid, idx.indisready, idx.indislive, idx.indisunique, idx.is_partial,
@@ -489,8 +520,7 @@ COMMIT;
 -- التراجع الآمن الوحيد:
 --   BEGIN;
 --     DROP FUNCTION IF EXISTS public.next_molim_id();
---     DROP INDEX IF EXISTS public.users_telegram_id_key;
 --     DROP INDEX IF EXISTS public.users_link_code_idx;
---     -- اترك الأعمدة والتسلسل كما هي.
+--     -- اترك الأعمدة والتسلسل كما هي، ولا تسقط users_telegram_id_key لأنه كان موجوداً مسبقاً قبل الترحيل.
 --   COMMIT;
 -- إسقاط الأعمدة لاحقًا (غير مطلوب الآن): خطة منفصلة + نسخة احتياطية مُختبرة.
