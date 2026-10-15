@@ -105,7 +105,10 @@ export async function POST(
   }
 
   // 4) فحص أولي: هل يحق للمراجع رؤية هذا السجل؟
-  // إذا كان لا يحق له رؤيته، نرجع 404 بنفس الرسالة حتى لا نكشف وجوده
+  // نمرر currentStatus: "pending" عمداً بدلاً من حالة السجل الحقيقية؛
+  // حتى لا تؤثر حالة السجل (مثل rejected أو approved) على فحص الصلاحية الأساسي وتتسبب في إرجاع 400/403،
+  // مما قد يكشف وجود السجل لمراجع غير مخوّل به أصلاً (منع تسريب وجود السجلات لمراجع غير مصرح له).
+  // الفحص اللاحق (reviewDecision) هو الذي سيفحص الحالة الحقيقية للسجل.
   const visibilityCheck = decideHoursReview({
     reviewerRole,
     reviewerId: reviewerUser.id,
@@ -113,7 +116,7 @@ export async function POST(
     ownerRole,
     ownerId: existingRecord.user_id,
     ownerDepartmentId: ownerDeptId,
-    currentStatus: toPolicyStatus(existingRecord.status),
+    currentStatus: "pending",
     action: "approve",
     submittedHours: Number(existingRecord.submitted_hours),
     hasOtherActiveSuperAdmin,

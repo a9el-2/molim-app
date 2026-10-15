@@ -87,7 +87,7 @@ export async function GET(request: Request) {
         last_name,
         role,
         department_id,
-        departments (
+        departments!users_department_id_fkey (
           id,
           name
         )
