@@ -318,3 +318,129 @@ export async function telegramAuth(
 
   return { hasLinkedUser: true, userId: data.userId };
 }
+
+export type HoursLogDTO = {
+  id: string | number;
+  user_id: string;
+  task_id: string | null;
+  department_id: string | null;
+  submitted_hours: number;
+  approved_hours: number | null;
+  date: string;
+  description: string;
+  status: "in_review" | "approved" | "rejected";
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_notes: string | null;
+  is_self_approved: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type SubmitHoursInput = {
+  hours: number;
+  date: string;
+  description?: string;
+  taskId?: string | null;
+};
+
+export type UpdateHoursInput = {
+  hours?: number;
+  date?: string;
+  description?: string;
+  taskId?: string | null;
+};
+
+export async function fetchMyHours(): Promise<{
+  ok: boolean;
+  hours: HoursLogDTO[];
+  error?: string;
+}> {
+  const response = await fetch("/api/hours", {
+    headers: authHeaders(),
+  }).catch(() => null);
+
+  if (!response) {
+    return {
+      ok: false,
+      hours: [],
+      error: "تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت.",
+    };
+  }
+
+  const data = await parseJson<{
+    ok?: boolean;
+    hours?: HoursLogDTO[];
+    error?: string;
+  }>(response);
+
+  if (!response.ok || !data?.ok) {
+    return {
+      ok: false,
+      hours: [],
+      error: data?.error ?? "تعذر جلب سجل الساعات.",
+    };
+  }
+
+  return { ok: true, hours: data.hours ?? [] };
+}
+
+export async function submitHours(
+  payload: SubmitHoursInput
+): Promise<{ ok: boolean; hour?: HoursLogDTO; error?: string }> {
+  const response = await fetch("/api/hours", {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(payload),
+  }).catch(() => null);
+
+  if (!response) {
+    return {
+      ok: false,
+      error: "تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت.",
+    };
+  }
+
+  const data = await parseJson<{
+    ok?: boolean;
+    hour?: HoursLogDTO;
+    error?: string;
+  }>(response);
+
+  if (!response.ok || !data?.ok) {
+    return { ok: false, error: data?.error ?? "تعذر تسجيل الساعات." };
+  }
+
+  return { ok: true, hour: data.hour };
+}
+
+export async function updateHours(
+  id: string | number,
+  payload: UpdateHoursInput
+): Promise<{ ok: boolean; hour?: HoursLogDTO; error?: string }> {
+  const response = await fetch(`/api/hours/${encodeURIComponent(String(id))}`, {
+    method: "PATCH",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(payload),
+  }).catch(() => null);
+
+  if (!response) {
+    return {
+      ok: false,
+      error: "تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت.",
+    };
+  }
+
+  const data = await parseJson<{
+    ok?: boolean;
+    hour?: HoursLogDTO;
+    error?: string;
+  }>(response);
+
+  if (!response.ok || !data?.ok) {
+    return { ok: false, error: data?.error ?? "تعذر تعديل السجل." };
+  }
+
+  return { ok: true, hour: data.hour };
+}
+

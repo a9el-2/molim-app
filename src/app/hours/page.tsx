@@ -1,96 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useAuth } from "../lib/auth-context";
+import {
+  fetchMyHours,
+  submitHours,
+  updateHours,
+  type HoursLogDTO,
+} from "../lib/supabase/dto";
+import { canEditOwnEntry, validateHoursSubmission } from "../lib/hours-policy";
 
-type HoursStatus = "قيد المراجعة" | "معتمدة" | "مرفوضة";
-
-type HoursRecord = {
-  id: number;
-  volunteer: string;
-  molimId: string;
-  task: string;
-  description: string;
-  department: string;
-  submittedHours: number;
-  approvedHours: number;
-  date: string;
-  status: HoursStatus;
-  reviewer: string;
-  reviewedAt: string;
-  notes: string;
-};
-
-type FilterType = "الكل" | HoursStatus;
-
-const CURRENT_REVIEWER = "أصيل";
-
-const initialRecords: HoursRecord[] = [
-  {
-    id: 1,
-    volunteer: "محمد أحمد",
-    molimId: "MOL-00012",
-    task: "تنظيم ملفات الفريق",
-    description:
-      "تنظيم وترتيب ملفات المتطوعين ومراجعة المستندات الموجودة في مجلد الفريق.",
-    department: "الإدارة",
-    submittedHours: 4,
-    approvedHours: 0,
-    date: "2026/09/01",
-    status: "قيد المراجعة",
-    reviewer: "",
-    reviewedAt: "",
-    notes: "",
-  },
-  {
-    id: 2,
-    volunteer: "خالد علي",
-    molimId: "MOL-00008",
-    task: "تصميم منشورات المنصة",
-    description:
-      "تصميم مجموعة من المنشورات الخاصة بإعلانات المنح وفرص التطوع.",
-    department: "الإدارة",
-    submittedHours: 6,
-    approvedHours: 6,
-    date: "2026/08/30",
-    status: "معتمدة",
-    reviewer: "أصيل",
-    reviewedAt: "2026/08/31",
-    notes: "تمت مراجعة المهمة واعتماد الساعات.",
-  },
-  {
-    id: 3,
-    volunteer: "سارة محمد",
-    molimId: "MOL-00015",
-    task: "البحث عن المنح",
-    description:
-      "البحث عن المنح الدراسية وجمع المعلومات وتجهيزها للنشر.",
-    department: "البحث",
-    submittedHours: 3,
-    approvedHours: 0,
-    date: "2026/08/29",
-    status: "مرفوضة",
-    reviewer: "أصيل",
-    reviewedAt: "2026/08/30",
-    notes: "المهمة تحتاج إلى توضيح إضافي.",
-  },
-  {
-    id: 4,
-    volunteer: "محمد علي",
-    molimId: "MOL-00019",
-    task: "إدارة محتوى القناة",
-    description:
-      "متابعة المحتوى المنشور في القناة وتجهيز المواد المطلوبة للنشر.",
-    department: "الإدارة",
-    submittedHours: 5,
-    approvedHours: 0,
-    date: "2026/09/02",
-    status: "قيد المراجعة",
-    reviewer: "",
-    reviewedAt: "",
-    notes: "",
-  },
-];
+type FilterType = "الكل" | "قيد المراجعة" | "معتمدة" | "مرفوضة";
 
 const filters: FilterType[] = [
   "الكل",
@@ -99,158 +19,271 @@ const filters: FilterType[] = [
   "مرفوضة",
 ];
 
+function getTodayString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getStatusLabel(status: string): "قيد المراجعة" | "معتمدة" | "مرفوضة" {
+  if (status === "in_review" || status === "pending" || status === "قيد المراجعة") {
+    return "قيد المراجعة";
+  }
+  if (status === "approved" || status === "معتمدة") {
+    return "معتمدة";
+  }
+  return "مرفوضة";
+}
+
+function getStatusStyle(status: string) {
+  const label = getStatusLabel(status);
+  if (label === "قيد المراجعة") {
+    return "border-yellow-200 bg-yellow-50 text-yellow-700";
+  }
+  if (label === "معتمدة") {
+    return "border-green-200 bg-green-50 text-green-700";
+  }
+  return "border-red-200 bg-red-50 text-red-700";
+}
+
 export default function HoursPage() {
-  const [records, setRecords] =
-    useState<HoursRecord[]>(initialRecords);
+  const { user, isReady } = useAuth();
 
-  const [activeFilter, setActiveFilter] =
-    useState<FilterType>("الكل");
+  const [records, setRecords] = useState<HoursLogDTO[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
+  const [activeFilter, setActiveFilter] = useState<FilterType>("الكل");
   const [search, setSearch] = useState("");
 
-  const [selectedRecord, setSelectedRecord] =
-    useState<HoursRecord | null>(null);
+  // عرض التفاصيل
+  const [selectedRecord, setSelectedRecord] = useState<HoursLogDTO | null>(null);
 
-  const [approvedHours, setApprovedHours] =
-    useState("");
+  // وضع التعديل في النافذة
+  const [isEditing, setIsEditing] = useState(false);
+  const [editHours, setEditHours] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
-  const [reviewNotes, setReviewNotes] =
-    useState("");
+  // نافذة تقديم ساعات جديدة
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [newHours, setNewHours] = useState("");
+  const [newDate, setNewDate] = useState(getTodayString());
+  const [newDescription, setNewDescription] = useState("");
+  const [newSubmitting, setNewSubmitting] = useState(false);
+  const [newSubmitError, setNewSubmitError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const { user, role } = useAuth();
+  const loadHours = useCallback(async () => {
+    setLoading(true);
+    setFetchError(null);
+    const result = await fetchMyHours();
+    if (result.ok) {
+      setRecords(result.hours);
+    } else {
+      setFetchError(result.error ?? "تعذر تحميل سجل الساعات.");
+    }
+    setLoading(false);
+  }, []);
 
-  const isVolunteer = role === "VOLUNTEER";
+  useEffect(() => {
+    if (isReady) {
+      loadHours();
+    }
+  }, [isReady, loadHours]);
 
-  /* المتطوع يرى سجلاته فقط، والبقية يرون سجلات كل الفريق */
-  const visibleRecords = useMemo(
+  // إحصائيات السجلات
+  const pendingCount = useMemo(
     () =>
-      isVolunteer
-        ? records.filter((record) => record.molimId === user.id)
-        : records,
-    [isVolunteer, records, user.id]
+      records.filter(
+        (r) => getStatusLabel(r.status) === "قيد المراجعة"
+      ).length,
+    [records]
   );
 
-  const pendingCount = visibleRecords.filter(
-    (record) => record.status === "قيد المراجعة"
-  ).length;
-
-  const approvedCount = visibleRecords.filter(
-    (record) => record.status === "معتمدة"
-  ).length;
-
-  const rejectedCount = visibleRecords.filter(
-    (record) => record.status === "مرفوضة"
-  ).length;
-
-  const submittedHoursTotal = visibleRecords.reduce(
-    (total, record) => total + record.submittedHours,
-    0
+  const approvedCount = useMemo(
+    () =>
+      records.filter(
+        (r) => getStatusLabel(r.status) === "معتمدة"
+      ).length,
+    [records]
   );
 
-  const approvedHoursTotal = visibleRecords.reduce(
-    (total, record) =>
-      total +
-      (record.status === "معتمدة"
-        ? record.approvedHours
-        : 0),
-    0
+  const rejectedCount = useMemo(
+    () =>
+      records.filter(
+        (r) => getStatusLabel(r.status) === "مرفوضة"
+      ).length,
+    [records]
   );
 
-  const unapprovedRecords = visibleRecords.filter(
-    (record) => record.status !== "معتمدة"
+  const submittedHoursTotal = useMemo(
+    () =>
+      records.reduce(
+        (sum, r) => sum + Number(r.submitted_hours || 0),
+        0
+      ),
+    [records]
+  );
+
+  const approvedHoursTotal = useMemo(
+    () =>
+      records.reduce(
+        (sum, r) =>
+          sum +
+          (getStatusLabel(r.status) === "معتمدة"
+            ? Number(r.approved_hours ?? r.submitted_hours ?? 0)
+            : 0),
+        0
+      ),
+    [records]
+  );
+
+  const unapprovedRecords = useMemo(
+    () =>
+      records.filter(
+        (r) => getStatusLabel(r.status) !== "معتمدة"
+      ),
+    [records]
   );
 
   const filteredRecords = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    return visibleRecords.filter((record) => {
+    return records.filter((record) => {
+      const statusLabel = getStatusLabel(record.status);
       const matchesFilter =
-        activeFilter === "الكل" ||
-        record.status === activeFilter;
+        activeFilter === "الكل" || statusLabel === activeFilter;
 
+      const desc = (record.description || "").toLowerCase();
+      const date = (record.date || "").toLowerCase();
       const matchesSearch =
-        !query ||
-        record.volunteer.toLowerCase().includes(query) ||
-        record.molimId.toLowerCase().includes(query) ||
-        record.task.toLowerCase().includes(query) ||
-        record.department.toLowerCase().includes(query);
+        !query || desc.includes(query) || date.includes(query);
 
       return matchesFilter && matchesSearch;
     });
-  }, [visibleRecords, activeFilter, search]);
+  }, [records, activeFilter, search]);
 
-  function openRecord(record: HoursRecord) {
+  // فتح سجل
+  function openRecord(record: HoursLogDTO) {
     setSelectedRecord(record);
-
-    setApprovedHours(
-      record.approvedHours > 0
-        ? String(record.approvedHours)
-        : String(record.submittedHours)
-    );
-
-    setReviewNotes(record.notes);
+    setIsEditing(false);
+    setEditError(null);
+    setEditHours(String(record.submitted_hours));
+    setEditDate(record.date);
+    setEditDescription(record.description || "");
   }
 
   function closeRecord() {
     setSelectedRecord(null);
-    setApprovedHours("");
-    setReviewNotes("");
+    setIsEditing(false);
+    setEditError(null);
   }
 
-  function reviewRecord(
-    newStatus: "معتمدة" | "مرفوضة"
-  ) {
+  // إرسال ساعات جديدة
+  async function handleCreateHours(e: React.FormEvent) {
+    e.preventDefault();
+    setNewSubmitError(null);
+
+    const hoursNum = parseFloat(newHours);
+    if (Number.isNaN(hoursNum)) {
+      setNewSubmitError("يرجى إدخال عدد ساعات صحيح.");
+      return;
+    }
+
+    // التحقق المبدئي بالسياسة
+    const localValidation = validateHoursSubmission({
+      hours: hoursNum,
+      workDate: newDate,
+      note: newDescription,
+    });
+
+    if (!localValidation.valid) {
+      setNewSubmitError(localValidation.message ?? "بيانات الساعات غير صحيحة.");
+      return;
+    }
+
+    setNewSubmitting(true);
+    const result = await submitHours({
+      hours: hoursNum,
+      date: newDate,
+      description: newDescription.trim(),
+    });
+
+    setNewSubmitting(false);
+
+    if (!result.ok) {
+      setNewSubmitError(result.error ?? "تعذر تقديم الساعات.");
+      return;
+    }
+
+    setIsSubmitModalOpen(false);
+    setNewHours("");
+    setNewDate(getTodayString());
+    setNewDescription("");
+    setSuccessMessage("تم تقديم الساعات بنجاح.");
+    setTimeout(() => setSuccessMessage(null), 4000);
+    await loadHours();
+  }
+
+  // تعديل السجل القائم
+  async function handleUpdateHours(e: React.FormEvent) {
+    e.preventDefault();
     if (!selectedRecord) return;
+    setEditError(null);
 
-    const enteredHours = Number(approvedHours);
+    const hoursNum = parseFloat(editHours);
+    if (Number.isNaN(hoursNum)) {
+      setEditError("يرجى إدخال عدد ساعات صحيح.");
+      return;
+    }
 
-    const finalApprovedHours =
-      Number.isFinite(enteredHours) &&
-      enteredHours >= 0
-        ? Math.min(
-            enteredHours,
-            selectedRecord.submittedHours
-          )
-        : 0;
+    const localValidation = validateHoursSubmission({
+      hours: hoursNum,
+      workDate: editDate,
+      note: editDescription,
+    });
 
-    const reviewedDate =
-      new Date().toLocaleDateString("ar-SA");
+    if (!localValidation.valid) {
+      setEditError(localValidation.message ?? "بيانات الساعات غير صحيحة.");
+      return;
+    }
 
-    setRecords((currentRecords) =>
-      currentRecords.map((record) =>
-        record.id === selectedRecord.id
-          ? {
-              ...record,
-              status: newStatus,
-              approvedHours:
-                newStatus === "معتمدة"
-                  ? finalApprovedHours
-                  : 0,
-              reviewer: CURRENT_REVIEWER,
-              reviewedAt: reviewedDate,
-              notes: reviewNotes.trim(),
-            }
-          : record
-      )
-    );
+    setEditSubmitting(true);
+    const result = await updateHours(selectedRecord.id, {
+      hours: hoursNum,
+      date: editDate,
+      description: editDescription.trim(),
+    });
+    setEditSubmitting(false);
+
+    if (!result.ok) {
+      setEditError(result.error ?? "تعذر تعديل السجل.");
+      return;
+    }
 
     closeRecord();
-
-    // بعد الاعتماد أو الرفض ننتقل تلقائيًا إلى الحالة المناسبة.
-    setActiveFilter(newStatus);
+    setSuccessMessage("تم تعديل السجل وإعادته للمراجعة بنجاح.");
+    setTimeout(() => setSuccessMessage(null), 4000);
+    await loadHours();
   }
 
-  function statusStyle(status: HoursStatus) {
-    if (status === "قيد المراجعة") {
-      return "border-yellow-200 bg-yellow-50 text-yellow-700";
-    }
-
-    if (status === "معتمدة") {
-      return "border-green-200 bg-green-50 text-green-700";
-    }
-
-    return "border-red-200 bg-red-50 text-red-700";
-  }
+  // هل السجل الحالي قابل للتعديل؟
+  const isSelectedRecordEditable = useMemo(() => {
+    if (!selectedRecord) return false;
+    const policyStatus =
+      selectedRecord.status === "in_review"
+        ? "pending"
+        : selectedRecord.status;
+    return canEditOwnEntry({
+      status: policyStatus,
+      isOwner: true,
+    });
+  }, [selectedRecord]);
 
   return (
     <main
@@ -270,160 +303,142 @@ export default function HoursPage() {
           </span>
         </div>
 
-        {/* Header */}
-        <section className="mb-6">
-          <h1 className="text-2xl font-bold">
-            سجل الساعات التطوعية
-          </h1>
+        {/* Header & Submit Button */}
+        <section className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">
+              سجل الساعات التطوعية
+            </h1>
+            <p className="mt-1 text-sm text-molim-muted">
+              متابعة ساعاتك التطوعية المسجلة وتحديثها.
+            </p>
+          </div>
 
-          <p className="mt-2 text-sm leading-6 text-molim-muted">
-            متابعة الساعات التطوعية المسجلة ومراجعتها
-            واعتمادها.
-          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setNewSubmitError(null);
+              setIsSubmitModalOpen(true);
+            }}
+            className="flex items-center justify-center gap-2 rounded-xl bg-[#ed542f] px-5 py-3 font-semibold text-white shadow transition hover:bg-[#d94420] active:scale-95"
+          >
+            <span>➕</span>
+            <span>تسجيل ساعات جديدة</span>
+          </button>
         </section>
 
-        {/* Statistics */}
-        {isVolunteer ? (
-          <>
-            {/* إجمالي الساعات المعتمدة — بارز أعلى الصفحة */}
-            <section className="overflow-hidden rounded-2xl border border-molim bg-molim-surface">
-              <div className="border-b-4 border-[#ed542f]">
-                <div className="flex items-center justify-between gap-4 p-6">
-                  <div>
-                    <p className="text-sm text-molim-muted">
-                      إجمالي الساعات المعتمدة
-                    </p>
+        {/* Success Alert */}
+        {successMessage && (
+          <div className="mb-5 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800">
+            ✅ {successMessage}
+          </div>
+        )}
 
-                    <p className="mt-2 text-5xl font-black text-[#ed542f]">
-                      {approvedHoursTotal}
-                    </p>
+        {/* Error Alert */}
+        {fetchError && (
+          <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800">
+            ⚠️ {fetchError}
+            <button
+              type="button"
+              onClick={loadHours}
+              className="mr-3 underline hover:no-underline"
+            >
+              إعادة المحاولة
+            </button>
+          </div>
+        )}
 
-                    <p className="mt-3 text-xs leading-5 text-molim-muted">
-                      الساعات المعتمدة في سجلّك التطوعي حتى الآن.
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl bg-[#ed542f]/10 px-5 py-4 text-3xl">
-                    📊
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* الساعات غير المعتمدة */}
-            <section className="mt-6">
-              <h2 className="text-lg font-bold">
-                الساعات غير المعتمدة
-              </h2>
-
-              {unapprovedRecords.length > 0 ? (
-                <div className="mt-3 space-y-2">
-                  {unapprovedRecords.map((record) => (
-                    <button
-                      key={record.id}
-                      type="button"
-                      onClick={() => openRecord(record)}
-                      className="block w-full cursor-pointer rounded-2xl border border-molim bg-molim-surface p-4 text-right transition hover:border-[#ed542f]"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="font-semibold">
-                            {record.task}
-                          </p>
-
-                          <p className="mt-1 text-xs text-molim-muted">
-                            {record.submittedHours} ساعة —{" "}
-                            {record.date}
-                          </p>
-                        </div>
-
-                        <span
-                          className={`rounded-lg border px-2 py-1 text-xs font-medium ${statusStyle(
-                            record.status
-                          )}`}
-                        >
-                          {record.status}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-molim-muted">
-                  لا توجد ساعات غير معتمدة حاليًا.
+        {/* إجمالي الساعات المعتمدة — بارز أعلى الصفحة */}
+        <section className="overflow-hidden rounded-2xl border border-molim bg-molim-surface">
+          <div className="border-b-4 border-[#ed542f]">
+            <div className="flex items-center justify-between gap-4 p-6">
+              <div>
+                <p className="text-sm text-molim-muted">
+                  إجمالي الساعات المعتمدة
                 </p>
-              )}
-            </section>
 
-            {/* الفاصل */}
-            <div className="my-6 flex items-center gap-3">
-              <span className="h-px flex-1 bg-molim" />
-              <span className="text-xs font-bold text-molim-muted">
-                حالة سجلاتك
-              </span>
-              <span className="h-px flex-1 bg-molim" />
+                <p className="mt-2 text-5xl font-black text-[#ed542f]">
+                  {approvedHoursTotal}
+                </p>
+
+                <p className="mt-3 text-xs leading-5 text-molim-muted">
+                  الساعات المعتمدة في سجلّك التطوعي حتى الآن.
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-[#ed542f]/10 px-5 py-4 text-3xl">
+                📊
+              </div>
             </div>
+          </div>
+        </section>
 
-            {/* عدادات الحالة */}
-            <section className="grid grid-cols-3 gap-3">
-              <StatCard
-                title="قيد المراجعة"
-                value={pendingCount}
-                icon="⏳"
-              />
-
-              <StatCard
-                title="معتمدة"
-                value={approvedCount}
-                icon="✅"
-              />
-
-              <StatCard
-                title="مرفوضة"
-                value={rejectedCount}
-                icon="❌"
-              />
-            </section>
-          </>
-        ) : (
-        <section className="grid grid-cols-2 gap-3 md:grid-cols-5">
-
+        {/* عدادات الحالة */}
+        <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard
             title="قيد المراجعة"
             value={pendingCount}
             icon="⏳"
           />
-
           <StatCard
             title="معتمدة"
             value={approvedCount}
             icon="✅"
           />
-
-          <StatCard
-            title="الساعات المسجلة"
-            value={submittedHoursTotal}
-            icon="🕒"
-          />
-
           <StatCard
             title="مرفوضة"
             value={rejectedCount}
             icon="❌"
           />
-
           <StatCard
-            title="إجمالي الساعات المعتمدة"
-            value={approvedHoursTotal}
-            icon="📊"
+            title="إجمالي الساعات المسجلة"
+            value={submittedHoursTotal}
+            icon="🕒"
           />
-
         </section>
+
+        {/* الساعات غير المعتمدة (قيد المراجعة أو مرفوضة) */}
+        {!loading && unapprovedRecords.length > 0 && (
+          <section className="mt-6">
+            <h2 className="text-lg font-bold">
+              الساعات غير المعتمدة
+            </h2>
+
+            <div className="mt-3 space-y-2">
+              {unapprovedRecords.map((record) => (
+                <button
+                  key={record.id}
+                  type="button"
+                  onClick={() => openRecord(record)}
+                  className="block w-full cursor-pointer rounded-2xl border border-molim bg-molim-surface p-4 text-right transition hover:border-[#ed542f]"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">
+                        {record.description || "ساعات تطوعية"}
+                      </p>
+
+                      <p className="mt-1 text-xs text-molim-muted">
+                        {record.submitted_hours} ساعة — {record.date}
+                      </p>
+                    </div>
+
+                    <span
+                      className={`rounded-lg border px-2 py-1 text-xs font-medium ${getStatusStyle(
+                        record.status
+                      )}`}
+                    >
+                      {getStatusLabel(record.status)}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
         )}
 
         {/* Search & Filters */}
-        <section className="mt-5 rounded-2xl border border-molim bg-molim-surface p-4">
-
+        <section className="mt-6 rounded-2xl border border-molim bg-molim-surface p-4">
           <label className="mb-2 block text-sm font-semibold">
             البحث
           </label>
@@ -431,15 +446,12 @@ export default function HoursPage() {
           <input
             type="text"
             value={search}
-            onChange={(event) =>
-              setSearch(event.target.value)
-            }
-            placeholder="ابحث باسم المتطوع، المهمة أو Molim ID..."
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="ابحث بوصف المهمة أو التاريخ..."
             className="h-12 w-full rounded-xl border border-molim bg-molim-soft px-4 text-sm outline-none transition focus:border-[#ed542f] focus:ring-2 focus:ring-[#ed542f]/10"
           />
 
           <div className="mt-4 flex flex-wrap gap-2">
-
             {filters.map((filter) => (
               <button
                 key={filter}
@@ -454,16 +466,14 @@ export default function HoursPage() {
                 {filter}
               </button>
             ))}
-
           </div>
         </section>
 
-        {/* Records */}
-        <section className="mt-5">
-
+        {/* Records List / Loading / Empty */}
+        <section className="mt-6">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-bold">
-              السجلات
+              جميع السجلات
             </h2>
 
             <span className="text-sm text-molim-muted">
@@ -471,352 +481,396 @@ export default function HoursPage() {
             </span>
           </div>
 
-          {filteredRecords.length === 0 ? (
-
-            <div className="rounded-2xl border border-dashed border-molim bg-molim-surface p-10 text-center">
-              <p className="font-semibold">
-                لا توجد سجلات
-              </p>
-
-              <p className="mt-2 text-sm text-molim-muted">
-                لا توجد سجلات مطابقة للبحث أو الحالة.
+          {loading ? (
+            <div className="rounded-2xl border border-molim bg-molim-surface p-12 text-center">
+              <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-molim border-t-[#ed542f]" />
+              <p className="font-semibold text-molim-muted">
+                جاري تحميل سجل الساعات...
               </p>
             </div>
-
+          ) : records.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-molim bg-molim-surface p-12 text-center">
+              <span className="text-4xl">🕒</span>
+              <p className="mt-3 text-lg font-bold">
+                لا توجد ساعات مسجلة حتى الآن
+              </p>
+              <p className="mt-1 text-sm text-molim-muted">
+                ابدأ بتسجيل ساعاتك التطوعية ليتم مراجعتها واعتمادها.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setNewSubmitError(null);
+                  setIsSubmitModalOpen(true);
+                }}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#ed542f] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#d94420]"
+              >
+                ➕ تسجيل أول نشاط تطوعي
+              </button>
+            </div>
+          ) : filteredRecords.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-molim bg-molim-surface p-10 text-center">
+              <p className="font-semibold">
+                لا توجد سجلات مطابقة
+              </p>
+              <p className="mt-2 text-sm text-molim-muted">
+                لا توجد سجلات مطابقة للبحث أو الحالة المحددة.
+              </p>
+            </div>
           ) : (
-
             <div className="space-y-3">
-
               {filteredRecords.map((record) => (
-
                 <button
                   key={record.id}
                   type="button"
                   onClick={() => openRecord(record)}
                   className="block w-full cursor-pointer rounded-2xl border border-molim bg-molim-surface p-4 text-right transition hover:border-[#ed542f] hover:shadow-sm"
                 >
-
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-
                     <div className="min-w-0">
-
                       <div className="flex flex-wrap items-center gap-2">
-
                         <h3 className="font-bold">
-                          {record.volunteer}
+                          {record.description || "ساعات تطوعية"}
                         </h3>
 
-                        <span className="rounded-lg bg-molim-soft px-2 py-1 text-xs text-molim-muted">
-                          {record.molimId}
-                        </span>
-
                         <span
-                          className={`rounded-lg border px-2 py-1 text-xs font-medium ${statusStyle(
+                          className={`rounded-lg border px-2 py-1 text-xs font-medium ${getStatusStyle(
                             record.status
                           )}`}
                         >
-                          {record.status}
+                          {getStatusLabel(record.status)}
                         </span>
 
+                        {record.is_self_approved && (
+                          <span className="rounded-lg bg-purple-50 border border-purple-200 px-2 py-1 text-xs font-medium text-purple-700">
+                            اعتماد ذاتي
+                          </span>
+                        )}
                       </div>
 
-                      <p className="mt-2 text-sm font-medium text-molim-foreground">
-                        {record.task}
-                      </p>
-
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-molim-muted">
-
-                        <span>
-                          القسم: {record.department}
-                        </span>
-
-                        <span>
-                          تاريخ التسجيل: {record.date}
-                        </span>
-
-                        <span>
-                          الساعات المسجلة:{" "}
-                          {record.submittedHours}
-                        </span>
-
-                        {record.status === "معتمدة" && (
+                        <span>تاريخ العمل: {record.date}</span>
+                        <span>الساعات المسجلة: {record.submitted_hours} ساعة</span>
+                        {getStatusLabel(record.status) === "معتمدة" && (
                           <span>
                             الساعات المعتمدة:{" "}
-                            {record.approvedHours}
+                            {record.approved_hours ?? record.submitted_hours} ساعة
                           </span>
                         )}
-
-                        {record.reviewer && (
+                        {record.reviewed_at && (
                           <span>
-                            {record.status === "معتمدة"
-                              ? "اعتمدها"
-                              : "رفضها"}
-                            : {record.reviewer}
+                            {getStatusLabel(record.status) === "معتمدة"
+                              ? "تاريخ الاعتماد: "
+                              : "تاريخ الرفض: "}
+                            {record.reviewed_at}
                           </span>
                         )}
-
                       </div>
                     </div>
 
                     <div className="shrink-0 text-sm font-semibold text-[#ed542f]">
-                      {!isVolunteer && record.status === "قيد المراجعة"
-                        ? "مراجعة السجل ←"
-                        : "عرض التفاصيل ←"}
+                      عرض التفاصيل ←
                     </div>
-
                   </div>
-
                 </button>
-
               ))}
-
             </div>
-
           )}
-
         </section>
       </div>
 
-      {/* Review Modal */}
-      {selectedRecord && (
-
+      {/* نافذة تسجيل ساعات جديدة */}
+      {isSubmitModalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !newSubmitting) {
+              setIsSubmitModalOpen(false);
+            }
+          }}
+        >
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-molim-surface p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-molim pb-4">
+              <h2 className="text-xl font-bold">تسجيل ساعات جديدة</h2>
+              <button
+                type="button"
+                disabled={newSubmitting}
+                onClick={() => setIsSubmitModalOpen(false)}
+                className="cursor-pointer rounded-xl bg-molim-soft px-3 py-2 text-molim-muted hover:text-molim-foreground"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateHours} className="mt-5 space-y-4">
+              {newSubmitError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  ⚠️ {newSubmitError}
+                </div>
+              )}
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold">
+                  عدد الساعات (من 0.25 إلى 24 بخطوات 0.25)
+                </label>
+                <input
+                  type="number"
+                  step="0.25"
+                  min="0.25"
+                  max="24"
+                  required
+                  value={newHours}
+                  onChange={(e) => setNewHours(e.target.value)}
+                  placeholder="مثال: 3.5"
+                  className="h-12 w-full rounded-xl border border-molim bg-molim-soft px-4 text-sm outline-none transition focus:border-[#ed542f]"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold">
+                  تاريخ العمل التطوعي
+                </label>
+                <input
+                  type="date"
+                  required
+                  max={getTodayString()}
+                  value={newDate}
+                  onChange={(e) => setNewDate(e.target.value)}
+                  className="h-12 w-full rounded-xl border border-molim bg-molim-soft px-4 text-sm outline-none transition focus:border-[#ed542f]"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold">
+                  وصف العمل التطوعي / الملاحظات
+                </label>
+                <textarea
+                  rows={4}
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                  placeholder="اكتب وصفاً مختصراً لما قمت به (إجباري عند تجاوز 12 ساعة في اليوم الواحد)..."
+                  className="w-full resize-none rounded-xl border border-molim bg-molim-soft p-4 text-sm outline-none transition focus:border-[#ed542f]"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={newSubmitting}
+                  className="h-12 flex-1 cursor-pointer rounded-xl bg-[#ed542f] font-semibold text-white transition hover:bg-[#d94420] disabled:opacity-50"
+                >
+                  {newSubmitting ? "جاري الإرسال..." : "إرسال الساعات للمراجعة"}
+                </button>
+                <button
+                  type="button"
+                  disabled={newSubmitting}
+                  onClick={() => setIsSubmitModalOpen(false)}
+                  className="h-12 rounded-xl border border-molim px-5 font-semibold text-molim-muted hover:bg-molim-soft"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* نافذة تفاصيل وتعديل السجل */}
+      {selectedRecord && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !editSubmitting) {
               closeRecord();
             }
           }}
         >
-
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-molim-surface p-5 shadow-2xl">
-
-            {/* Modal Header */}
-            <div className="flex items-start justify-between gap-4">
-
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-molim-surface p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-molim pb-4">
               <div>
-                <p className="text-sm text-molim-muted">
+                <p className="text-xs text-molim-muted">
                   تفاصيل سجل الساعات
                 </p>
-
                 <h2 className="mt-1 text-xl font-bold">
-                  {selectedRecord.volunteer}
+                  {selectedRecord.description || "ساعات تطوعية"}
                 </h2>
-
-                <p className="mt-1 text-xs text-molim-muted">
-                  {selectedRecord.molimId}
-                </p>
               </div>
 
               <button
                 type="button"
+                disabled={editSubmitting}
                 onClick={closeRecord}
-                className="cursor-pointer rounded-xl bg-molim-soft px-3 py-2 hover:bg-molim-soft"
+                className="cursor-pointer rounded-xl bg-molim-soft px-3 py-2 text-molim-muted hover:text-molim-foreground"
               >
                 ✕
               </button>
-
             </div>
 
-            <div className="mt-5 space-y-4">
+            {isEditing ? (
+              /* نموذج التعديل */
+              <form onSubmit={handleUpdateHours} className="mt-5 space-y-4">
+                {editError && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    ⚠️ {editError}
+                  </div>
+                )}
 
-              {/* Task */}
-              <div className="rounded-2xl bg-molim-soft p-4">
-
-                <p className="text-xs text-molim-muted">
-                  المهمة
-                </p>
-
-                <p className="mt-1 font-bold">
-                  {selectedRecord.task}
-                </p>
-
-                <p className="mt-3 text-sm leading-6 text-molim-muted">
-                  {selectedRecord.description}
-                </p>
-
-              </div>
-
-              {/* Details */}
-              <div className="grid grid-cols-2 gap-3">
-
-                <InfoBox
-                  title="القسم"
-                  value={selectedRecord.department}
-                />
-
-                <InfoBox
-                  title="تاريخ التسجيل"
-                  value={selectedRecord.date}
-                />
-
-                <InfoBox
-                  title="الساعات المسجلة"
-                  value={`${selectedRecord.submittedHours} ساعة`}
-                />
-
-                <InfoBox
-                  title="الحالة"
-                  value={selectedRecord.status}
-                />
-
-              </div>
-
-              {/* Reviewer */}
-              {selectedRecord.reviewer && (
-                <div className="rounded-2xl border border-molim bg-molim-surface p-4">
-
-                  <p className="text-xs text-molim-muted">
-                    {selectedRecord.status === "معتمدة"
-                      ? "الشخص الذي اعتمد الساعات"
-                      : "الشخص الذي رفض الساعات"}
-                  </p>
-
-                  <p className="mt-1 font-bold">
-                    {selectedRecord.reviewer}
-                  </p>
-
-                  {selectedRecord.reviewedAt && (
-                    <p className="mt-1 text-xs text-molim-muted">
-                      بتاريخ {selectedRecord.reviewedAt}
-                    </p>
-                  )}
-
+                <div>
+                  <label className="mb-2 block text-sm font-semibold">
+                    عدد الساعات
+                  </label>
+                  <input
+                    type="number"
+                    step="0.25"
+                    min="0.25"
+                    max="24"
+                    required
+                    value={editHours}
+                    onChange={(e) => setEditHours(e.target.value)}
+                    className="h-12 w-full rounded-xl border border-molim bg-molim-soft px-4 text-sm outline-none transition focus:border-[#ed542f]"
+                  />
                 </div>
-              )}
 
-              {/* Review controls */}
-              {selectedRecord.status === "قيد المراجعة" ? (
-                isVolunteer ? (
+                <div>
+                  <label className="mb-2 block text-sm font-semibold">
+                    تاريخ العمل
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    max={getTodayString()}
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="h-12 w-full rounded-xl border border-molim bg-molim-soft px-4 text-sm outline-none transition focus:border-[#ed542f]"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold">
+                    الوصف / الملاحظة
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    className="w-full resize-none rounded-xl border border-molim bg-molim-soft p-4 text-sm outline-none transition focus:border-[#ed542f]"
+                  />
+                </div>
+
+                <div className="rounded-xl bg-yellow-50 border border-yellow-200 p-3 text-xs text-yellow-800">
+                  ℹ️ عند حفظ التعديلات ستعود حالة السجل تلقائياً إلى «قيد المراجعة».
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="submit"
+                    disabled={editSubmitting}
+                    className="h-12 flex-1 cursor-pointer rounded-xl bg-[#ed542f] font-semibold text-white transition hover:bg-[#d94420] disabled:opacity-50"
+                  >
+                    {editSubmitting ? "جاري الحفظ..." : "حفظ التعديلات وإعادة الإرسال"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={editSubmitting}
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditError(null);
+                    }}
+                    className="h-12 rounded-xl border border-molim px-5 font-semibold text-molim-muted hover:bg-molim-soft"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </form>
+            ) : (
+              /* عرض التفاصيل */
+              <div className="mt-5 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <InfoBox
+                    title="تاريخ العمل"
+                    value={selectedRecord.date}
+                  />
+
+                  <InfoBox
+                    title="الحالة"
+                    value={getStatusLabel(selectedRecord.status)}
+                  />
+
+                  <InfoBox
+                    title="الساعات المسجلة"
+                    value={`${selectedRecord.submitted_hours} ساعة`}
+                  />
+
+                  <InfoBox
+                    title="الساعات المعتمدة"
+                    value={
+                      getStatusLabel(selectedRecord.status) === "معتمدة"
+                        ? `${selectedRecord.approved_hours ?? selectedRecord.submitted_hours} ساعة`
+                        : "—"
+                    }
+                  />
+                </div>
+
+                {selectedRecord.description && (
+                  <div className="rounded-2xl bg-molim-soft p-4">
+                    <p className="text-xs text-molim-muted">الوصف / ملاحظة المتطوع</p>
+                    <p className="mt-1 text-sm leading-6">
+                      {selectedRecord.description}
+                    </p>
+                  </div>
+                )}
+
+                {/* ملاحظات المراجع إن وُجدت */}
+                {selectedRecord.review_notes && (
+                  <div className="rounded-2xl border border-molim bg-molim-soft p-4">
+                    <p className="text-xs text-molim-muted">
+                      {getStatusLabel(selectedRecord.status) === "معتمدة"
+                        ? "ملاحظات الاعتماد"
+                        : "سبب الرفض"}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-molim-foreground">
+                      {selectedRecord.review_notes}
+                    </p>
+                    {selectedRecord.reviewed_at && (
+                      <p className="mt-1 text-xs text-molim-muted">
+                        بتاريخ {selectedRecord.reviewed_at}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* حالة الانتظار */}
+                {getStatusLabel(selectedRecord.status) === "قيد المراجعة" && (
                   <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4">
                     <p className="text-sm font-semibold text-yellow-800">
                       بانتظار المراجعة
                     </p>
-
                     <p className="mt-1 text-xs leading-5 text-yellow-700">
-                      سجلّك هذا بانتظار مراجعة الجهة المختصة
-                      واعتماد الساعات.
+                      سجلّك هذا بانتظار مراجعة المسؤول واعتماد الساعات.
                     </p>
                   </div>
-                ) : (
-                <>
-                  <div>
+                )}
 
-                    <label
-                      htmlFor="approvedHours"
-                      className="mb-2 block text-sm font-semibold"
-                    >
-                      الساعات المعتمدة
-                    </label>
+                {/* زر التعديل إذا كان مسموحاً */}
+                {isSelectedRecordEditable && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    className="h-12 w-full cursor-pointer rounded-xl bg-molim-soft border border-molim font-semibold text-[#ed542f] transition hover:bg-[#ed542f]/10"
+                  >
+                    ✏️ تعديل هذا السجل وإعادة إرساله
+                  </button>
+                )}
 
-                    <input
-                      id="approvedHours"
-                      type="number"
-                      min="0"
-                      max={selectedRecord.submittedHours}
-                      value={approvedHours}
-                      onChange={(event) =>
-                        setApprovedHours(event.target.value)
-                      }
-                      className="h-12 w-full rounded-xl border border-molim bg-molim-soft px-4 outline-none transition focus:border-[#ed542f]"
-                    />
-
-                    <p className="mt-2 text-xs text-molim-muted">
-                      لا يمكن اعتماد ساعات أكثر من الساعات
-                      المسجلة.
-                    </p>
-
-                  </div>
-
-                  <div>
-
-                    <label
-                      htmlFor="reviewNotes"
-                      className="mb-2 block text-sm font-semibold"
-                    >
-                      ملاحظات المراجع
-                    </label>
-
-                    <textarea
-                      id="reviewNotes"
-                      rows={4}
-                      value={reviewNotes}
-                      onChange={(event) =>
-                        setReviewNotes(event.target.value)
-                      }
-                      placeholder="اكتب ملاحظات المراجعة..."
-                      className="w-full resize-none rounded-xl border border-molim bg-molim-soft p-4 text-sm outline-none transition focus:border-[#ed542f]"
-                    />
-
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-
-                    <button
-                      type="button"
-                      onClick={() => reviewRecord("معتمدة")}
-                      className="h-12 cursor-pointer rounded-xl bg-green-600 font-semibold text-white hover:bg-green-700"
-                    >
-                      ✅ اعتماد الساعات
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => reviewRecord("مرفوضة")}
-                      className="h-12 cursor-pointer rounded-xl bg-red-600 font-semibold text-white hover:bg-red-700"
-                    >
-                      ❌ رفض الساعات
-                    </button>
-
-                  </div>
-                </>
-                )
-              ) : (
-
-                /* Approved / Rejected */
-                <>
-
-                  {selectedRecord.status === "معتمدة" && (
-                    <div className="rounded-2xl bg-green-50 p-4">
-
-                      <p className="text-xs text-green-700">
-                        الساعات المعتمدة
-                      </p>
-
-                      <p className="mt-1 text-2xl font-bold text-green-800">
-                        {selectedRecord.approvedHours} ساعة
-                      </p>
-
-                    </div>
-                  )}
-
-                  {selectedRecord.notes && (
-                    <div className="rounded-2xl bg-molim-soft p-4">
-
-                      <p className="text-xs text-molim-muted">
-                        ملاحظات المراجع
-                      </p>
-
-                      <p className="mt-2 text-sm leading-6 text-molim-foreground">
-                        {selectedRecord.notes}
-                      </p>
-
-                    </div>
-                  )}
-
-                </>
-
-              )}
-
-              <button
-                type="button"
-                onClick={closeRecord}
-                className="h-12 w-full cursor-pointer rounded-xl border border-molim bg-molim-surface font-semibold text-molim-foreground hover:bg-molim-soft"
-              >
-                إغلاق
-              </button>
-
-            </div>
+                <button
+                  type="button"
+                  onClick={closeRecord}
+                  className="h-12 w-full cursor-pointer rounded-xl border border-molim bg-molim-surface font-semibold text-molim-foreground hover:bg-molim-soft"
+                >
+                  إغلاق
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -835,25 +889,13 @@ function StatCard({
 }) {
   return (
     <div className="rounded-2xl border border-molim bg-molim-surface p-4">
-
       <div className="flex items-start justify-between gap-3">
-
         <div>
-          <p className="text-xs leading-5 text-molim-muted">
-            {title}
-          </p>
-
-          <p className="mt-2 text-2xl font-bold">
-            {value}
-          </p>
+          <p className="text-xs leading-5 text-molim-muted">{title}</p>
+          <p className="mt-2 text-2xl font-bold">{value}</p>
         </div>
-
-        <div className="rounded-xl bg-molim-soft px-2.5 py-2">
-          {icon}
-        </div>
-
+        <div className="rounded-xl bg-molim-soft px-2.5 py-2">{icon}</div>
       </div>
-
     </div>
   );
 }
@@ -867,15 +909,8 @@ function InfoBox({
 }) {
   return (
     <div className="rounded-2xl border border-molim p-4">
-
-      <p className="text-xs text-molim-muted">
-        {title}
-      </p>
-
-      <p className="mt-1 font-semibold">
-        {value}
-      </p>
-
+      <p className="text-xs text-molim-muted">{title}</p>
+      <p className="mt-1 font-semibold">{value}</p>
     </div>
   );
 }
