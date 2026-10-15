@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "../../../lib/supabase/server";
-import { authenticateRequest, forbidden } from "../../../lib/server-auth";
+import { authenticateRequest } from "../../../lib/server-auth";
 import {
   validateHoursSubmission,
   canEditOwnEntry,
+  isValidISODate,
 } from "../../../lib/hours-policy";
 import {
   buildHoursUpdatePayload,
@@ -29,24 +30,20 @@ export async function PATCH(
     return NextResponse.json({ error: "Supabase غير مكوّن." }, { status: 503 });
   }
 
-  // جلب السجل القائم من القاعدة
+  // جلب السجل القائم من القاعدة مع التحقق من الملكية في نفس الاستعلام
   const { data: existingRecord, error: fetchError } = await supabase
     .from("hours_logs")
     .select("*")
     .eq("id", id)
+    .eq("user_id", auth.user.id) // [5] السجل غير الموجود أو غير المملوك → 404 بنفس الرسالة
     .maybeSingle();
 
   if (fetchError || !existingRecord) {
+    // [5] نُرجع 404 في كلتا الحالتين دون الكشف عن وجود السجل لمستخدم آخر
     return NextResponse.json(
       { error: "سجل الساعات غير موجود." },
       { status: 404 }
     );
-  }
-
-  // التحقق من الملكية
-  const isOwner = existingRecord.user_id === auth.user.id;
-  if (!isOwner) {
-    return forbidden("لا يمكنك تعديل سجل ساعات لا يخصك.");
   }
 
   // مطابقة الحالة مع سياسة النظام (قيد المراجعة أو مرفوض فقط)
@@ -74,7 +71,6 @@ export async function PATCH(
   const rawDate = body.date ?? body.workDate ?? body.work_date;
   const rawDescription =
     body.description ?? body.note ?? body.notes ?? body.task;
-  const rawTaskId = body.taskId ?? body.task_id;
 
   const hours =
     rawHours !== undefined
@@ -91,12 +87,16 @@ export async function PATCH(
       ? rawDescription.trim()
       : String(existingRecord.description ?? "");
 
-  const taskId =
-    rawTaskId !== undefined
-      ? (typeof rawTaskId === "string" && rawTaskId.trim()
-          ? rawTaskId.trim()
-          : null)
-      : existingRecord.task_id;
+  // [3] تجاهل taskId القادم من العميل تماماً — نبقي القيمة الموجودة في القاعدة.
+  // TODO: تفعيل taskId بعد ربط المهام — يجب التحقق من أن المهمة موجودة
+  //       وأن المستخدم مخوَّل بها (ينتمي إلى نفس القسم أو مُسنَدة إليه مباشرةً).
+  //       حتى ذلك الحين نحافظ على existingRecord.task_id دون أي تغيير من العميل.
+  const taskId = existingRecord.task_id as string | null;
+
+  // [4] التحقق من صيغة التاريخ قبل أي استعلام لقاعدة البيانات
+  if (!isValidISODate(workDate)) {
+    return NextResponse.json({ error: "تاريخ غير صالح." }, { status: 400 });
+  }
 
   // احتساب ساعات اليوم السابقة من القاعدة (باستثناء هذا السجل والسجلات المرفوضة)
   const { data: sameDayLogs, error: logsError } = await supabase
@@ -151,17 +151,32 @@ export async function PATCH(
     }
   );
 
+  // [1] نُضيف .eq("user_id") و .in("status") لمنع الكتابة فوق سجل اعتُمد في نفس اللحظة
   const { data: updatedRecord, error: updateError } = await supabase
     .from("hours_logs")
     .update(updatePayload)
     .eq("id", id)
+    .eq("user_id", auth.user.id)
+    .in("status", ["in_review", "rejected"])
     .select()
     .single();
 
+  // [1] إذا لم يُرجع التحديث أي صف: السجل تغيّر حالته (اعتُمد للتو)
   if (updateError || !updatedRecord) {
+    // نُفرّق بين خطأ حقيقي من Supabase (500) وعدم تطابق الشرط (409)
+    if (updateError) {
+      return NextResponse.json(
+        { error: "تعذر تحديث السجل. حاول مرة أخرى." },
+        { status: 500 }
+      );
+    }
+    // updatedRecord فارغ → الشروط لم تتحقق → السجل اعتُمد أثناء التعديل
     return NextResponse.json(
-      { error: "تعذر تحديث السجل. حاول مرة أخرى." },
-      { status: 500 }
+      {
+        error:
+          "تغيّرت حالة السجل أثناء التعديل (ربما اعتُمد للتو). حدّث الصفحة.",
+      },
+      { status: 409 }
     );
   }
 
@@ -182,7 +197,22 @@ export async function PATCH(
     .insert(auditPayload);
 
   if (auditError) {
-    await supabase.from("hours_logs").update(existingRecord).eq("id", id);
+    // [2] التراجع مع قيد إضافي: لا نكتب فوق السجل إذا تغيّرت حالته في الأثناء
+    const { error: rollbackError } = await supabase
+      .from("hours_logs")
+      .update(existingRecord)
+      .eq("id", id)
+      .eq("status", "in_review"); // [2] لا نكتب فوق سجل تغيّرت حالته
+
+    if (rollbackError) {
+      // التراجع نفسه فشل — نسجّل الخطأ ونُرجع رسالة واضحة
+      console.error(
+        "[PATCH /api/hours/%s] فشل التراجع عن التعديل بعد خطأ في سجل التدقيق:",
+        id,
+        rollbackError
+      );
+    }
+
     return NextResponse.json(
       {
         error:

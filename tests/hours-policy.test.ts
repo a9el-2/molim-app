@@ -7,6 +7,7 @@ import {
   resolveInitialHoursStatus,
   validateHoursSubmission,
   canEditOwnEntry,
+  isValidISODate,
 } from "../src/app/lib/hours-policy.ts";
 
 // ==========================================
@@ -530,4 +531,32 @@ test("التحقق من التاريخ: صيغة خاطئة مثل 'not-a-date' 
     false,
     "صيغة تاريخ خاطئة يجب ألا تجتاز التحقق أبداً"
   );
+});
+
+// ==========================================
+// 7. اختبارات isValidISODate
+// ==========================================
+
+test("isValidISODate: تواريخ صحيحة تُقبل", () => {
+  assert.equal(isValidISODate("2026-10-15"), true);
+  assert.equal(isValidISODate("2026-01-01"), true);
+  assert.equal(isValidISODate("2024-02-29"), true, "2024 سنة كبيسة — 29 فبراير صالح");
+  assert.equal(isValidISODate("2026-12-31"), true);
+});
+
+test("isValidISODate: تواريخ تقويمية غير موجودة تُرفض", () => {
+  assert.equal(isValidISODate("2026-02-29"), false, "2026 ليست سنة كبيسة");
+  assert.equal(isValidISODate("2026-02-30"), false, "فبراير لا يمتلك 30 يوماً");
+  assert.equal(isValidISODate("2026-04-31"), false, "أبريل لا يمتلك 31 يوماً");
+  assert.equal(isValidISODate("2026-13-01"), false, "الشهر 13 غير موجود");
+  assert.equal(isValidISODate("2026-00-10"), false, "الشهر 0 غير موجود");
+});
+
+test("isValidISODate: صيغ خاطئة أو فارغة تُرفض", () => {
+  assert.equal(isValidISODate(""), false);
+  assert.equal(isValidISODate("not-a-date"), false);
+  assert.equal(isValidISODate("2026/10/15"), false, "شرطة مائلة بدل شرطة عادية");
+  assert.equal(isValidISODate("26-10-15"), false, "سنة بأرقام ناقصة");
+  assert.equal(isValidISODate("2026-1-5"), false, "بدون حشو صفري");
+  assert.equal(isValidISODate("2026-10-15T00:00:00Z"), false, "تاريخ مع وقت");
 });

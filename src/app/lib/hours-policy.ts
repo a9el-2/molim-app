@@ -1,6 +1,20 @@
 import type { UserRole } from "./roles.ts";
 
 /**
+ * التحقق من أن قيمة التاريخ بصيغة YYYY-MM-DD وتاريخ تقويمي صالح.
+ * تُستخدم في API routes قبل أي استعلام لقاعدة البيانات.
+ * مثال: "2026-02-30" تفشل لأنه تاريخ غير موجود في التقويم.
+ */
+export function isValidISODate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(value + "T00:00:00Z");
+  return (
+    !Number.isNaN(parsed.getTime()) &&
+    parsed.toISOString().slice(0, 10) === value
+  );
+}
+
+/**
  * نطاق إنشاء المهمة:
  * - self: للمتطوع أو العضو نفسه فقط
  * - own_department: لقسم المنشئ
