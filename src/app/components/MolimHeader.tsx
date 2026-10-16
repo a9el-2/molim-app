@@ -123,6 +123,10 @@ export default function MolimHeader() {
       href: "/task-review",
     },
     {
+      title: "مراجعة الساعات",
+      href: "/hours-review",
+    },
+    {
       title: "أعضاء القسم",
       href: "/department",
     },
@@ -132,6 +136,10 @@ export default function MolimHeader() {
      الموارد البشرية
      ========================================= */
   const hrMenu: MenuItem[] = [
+    {
+      title: "مراجعة الساعات",
+      href: "/hours-review",
+    },
     {
       title: "المتطوعون",
       href: "/volunteers",
@@ -161,6 +169,10 @@ export default function MolimHeader() {
     {
       title: "لوحة القيادة",
       href: "/dashboard",
+    },
+    {
+      title: "مراجعة الساعات",
+      href: "/hours-review",
     },
     {
       title: "المتطوعون",

@@ -98,8 +98,9 @@ export const ROUTE_ACCESS_RULES: Record<string, UserRole[]> = {
   "/certificate-requests": ["HR", "SUPER_ADMIN"],
   "/invitations": ["HR", "ADMIN", "SUPER_ADMIN"],
 
-  // صفحات رؤساء الأقسام
+  // صفحات مراجعة الساعات والمهام
   "/task-review": ["DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
+  "/hours-review": ["DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
 
   // صفحات مشتركة أو مخصصة
   "/reports": ["HR", "ADMIN", "SUPER_ADMIN"],
