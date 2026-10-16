@@ -201,6 +201,16 @@ export function buildTaskInsertPayload(
   };
 }
 
+/**
+ * التحقق من أن رقم الساعات من مضاعفات الربع ساعة (0.25).
+ */
+export function isQuarterHourMultiple(val: number): boolean {
+  if (typeof val !== "number" || Number.isNaN(val) || !Number.isFinite(val)) {
+    return false;
+  }
+  return Math.abs(val * 4 - Math.round(val * 4)) <= 1e-6;
+}
+
 export type TaskAuditAction = "create_task";
 
 export type BuildTaskAuditLogInput = {
@@ -208,6 +218,7 @@ export type BuildTaskAuditLogInput = {
   action: TaskAuditAction;
   taskId: string;
   departmentId: string | null;
+  targetUserId?: string | null;
   beforeData: Record<string, unknown> | null;
   afterData: Record<string, unknown>;
   details?: string | null;
@@ -219,7 +230,7 @@ export type TaskAuditLogInsertPayload = {
   action: TaskAuditAction;
   target_type: "tasks";
   target_id: string;
-  target_user_id: string;
+  target_user_id: string | null;
   department_id: string | null;
   before_data: Record<string, unknown> | null;
   after_data: Record<string, unknown>;
@@ -238,7 +249,7 @@ export function buildTaskAuditLogPayload(
     action: input.action,
     target_type: "tasks",
     target_id: input.taskId,
-    target_user_id: input.actorId,
+    target_user_id: input.targetUserId ?? null,
     department_id: input.departmentId,
     before_data: input.beforeData,
     after_data: input.afterData,

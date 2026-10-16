@@ -255,7 +255,7 @@ export async function POST(request: Request) {
       !Number.isFinite(parsed) ||
       parsed <= 0 ||
       parsed > 1000 ||
-      Math.round(parsed * 100) % 25 !== 0
+      Math.abs(parsed * 4 - Math.round(parsed * 4)) > 1e-6
     ) {
       return NextResponse.json(
         { error: "الساعات المطلوبة يجب أن تكون رقماً موجباً من مضاعفات 0.25 وحتى 1000 ساعة." },
@@ -371,6 +371,7 @@ export async function POST(request: Request) {
     action: "create_task",
     taskId: String(insertedTask.id),
     departmentId: insertedTask.department_id,
+    targetUserId: insertedTask.target_user_id,
     beforeData: null,
     afterData: insertedTask,
     details: `إنشاء مهمة جديدة: ${insertedTask.title} (النطاق: ${scope})`,

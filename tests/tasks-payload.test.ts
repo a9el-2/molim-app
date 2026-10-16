@@ -7,6 +7,7 @@ import {
   buildTaskInsertPayload,
   canViewTask,
   buildTaskAuditLogPayload,
+  isQuarterHourMultiple,
 } from "../src/app/lib/tasks-payload.ts";
 import type { UserRole } from "../src/app/lib/roles.ts";
 
@@ -144,25 +145,63 @@ test("بناء حمولة المهمة: تجاهل أي قيم حساسة أو �
   assert.equal(payload.review_reason, null);
 });
 
-test("بناء حمولة تدقيق المهمة (buildTaskAuditLogPayload)", () => {
+test("بناء حمولة تدقيق المهمة (buildTaskAuditLogPayload): حالة النطاق self (targetUserId = المنشئ)", () => {
   const audit = buildTaskAuditLogPayload({
     actorId: "actor-1",
     action: "create_task",
-    taskId: "task-99",
-    departmentId: "dept-1",
+    taskId: "task-self",
+    departmentId: null,
+    targetUserId: "actor-1",
     beforeData: null,
-    afterData: { id: "task-99", title: "مهمة جديدة" },
+    afterData: { id: "task-self", title: "مهمة شخصية" },
     details: "تفاصيل العملية",
   });
 
   assert.equal(audit.category, "tasks");
   assert.equal(audit.action, "create_task");
   assert.equal(audit.target_type, "tasks");
-  assert.equal(audit.target_id, "task-99");
+  assert.equal(audit.target_id, "task-self");
   assert.equal(audit.target_user_id, "actor-1");
-  assert.equal(audit.department_id, "dept-1");
+  assert.equal(audit.department_id, null);
   assert.equal(audit.before_data, null);
   assert.equal(audit.details, "تفاصيل العملية");
+});
+
+test("بناء حمولة تدقيق المهمة (buildTaskAuditLogPayload): حالة النطاق department (targetUserId = null)", () => {
+  const audit = buildTaskAuditLogPayload({
+    actorId: "head-1",
+    action: "create_task",
+    taskId: "task-dept",
+    departmentId: "dept-media",
+    targetUserId: null,
+    beforeData: null,
+    afterData: { id: "task-dept", title: "مهمة للقسم" },
+    details: "إنشاء مهمة لقسم الإعلام",
+  });
+
+  assert.equal(audit.category, "tasks");
+  assert.equal(audit.action, "create_task");
+  assert.equal(audit.target_type, "tasks");
+  assert.equal(audit.target_id, "task-dept");
+  assert.equal(audit.target_user_id, null);
+  assert.equal(audit.department_id, "dept-media");
+  assert.equal(audit.before_data, null);
+  assert.equal(audit.details, "إنشاء مهمة لقسم الإعلام");
+});
+
+test("فحص مضاعفات الربع ساعة (isQuarterHourMultiple): التحقق من القيم المقبولة والمرفوضة", () => {
+  // قيم مقبولة
+  assert.equal(isQuarterHourMultiple(0.25), true);
+  assert.equal(isQuarterHourMultiple(1.75), true);
+  assert.equal(isQuarterHourMultiple(1000), true);
+  assert.equal(isQuarterHourMultiple(5), true);
+  assert.equal(isQuarterHourMultiple(0.5), true);
+
+  // قيم مرفوضة
+  assert.equal(isQuarterHourMultiple(0.249), false);
+  assert.equal(isQuarterHourMultiple(0.3), false);
+  assert.equal(isQuarterHourMultiple(1.1), false);
+  assert.equal(isQuarterHourMultiple(2.7), false);
 });
 
 test("صلاحية الرؤية (canViewTask): الأدوار العليا (HR, ADMIN, SUPER_ADMIN) ترى كل المهام", () => {
