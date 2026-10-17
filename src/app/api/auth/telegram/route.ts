@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
   const supabase = getSupabaseServerClient();
   if (!supabase) {
     return NextResponse.json(
-      { error: "Supabase غير مكوّن" },
+      { error: "الخدمة غير متاحة مؤقتاً. حاول لاحقاً." },
       { status: 503 }
     );
   }

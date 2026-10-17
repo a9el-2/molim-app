@@ -27,7 +27,10 @@ export async function PATCH(
 
   const supabase = getSupabaseServerClient();
   if (!supabase) {
-    return NextResponse.json({ error: "Supabase غير مكوّن." }, { status: 503 });
+    return NextResponse.json(
+      { error: "الخدمة غير متاحة مؤقتاً. حاول لاحقاً." },
+      { status: 503 }
+    );
   }
 
   // جلب السجل القائم من القاعدة مع التحقق من الملكية في نفس الاستعلام

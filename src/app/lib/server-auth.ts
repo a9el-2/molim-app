@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "./supabase/server";
 import { validateTelegramInitData, isTelegramInitDataFresh } from "./telegram";
 import { isProfileComplete, isActiveMember } from "./access-control";
+import { isDemoBypassAllowed } from "./demo-mode";
 import type { UserRole } from "./roles";
+
+export { isDemoBypassAllowed };
 
 export const TELEGRAM_INIT_HEADER = "x-telegram-init-data";
 
@@ -19,10 +22,7 @@ export type AuthOutcome =
   | { ok: false; response: NextResponse };
 
 function isDemoBypassEnabled(): boolean {
-  return (
-    process.env.NEXT_PUBLIC_DEMO === "1" &&
-    process.env.NODE_ENV !== "production"
-  );
+  return isDemoBypassAllowed();
 }
 
 function demoUser(): ServerUser {
@@ -130,7 +130,7 @@ export async function authenticateRequest(
     return {
       ok: false,
       response: NextResponse.json(
-        { error: "Supabase غير مكوّن." },
+        { error: "الخدمة غير متاحة مؤقتاً. حاول لاحقاً." },
         { status: 503 }
       ),
     };

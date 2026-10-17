@@ -36,7 +36,10 @@ export async function POST(
 
   const supabase = getSupabaseServerClient();
   if (!supabase) {
-    return NextResponse.json({ error: "Supabase غير مكوّن." }, { status: 503 });
+    return NextResponse.json(
+      { error: "الخدمة غير متاحة مؤقتاً. حاول لاحقاً." },
+      { status: 503 }
+    );
   }
 
   // 1) قراءة بيانات المراجع الحقيقية من جدول users

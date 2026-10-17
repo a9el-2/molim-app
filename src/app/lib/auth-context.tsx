@@ -118,11 +118,11 @@ function readSavedRole(): UserRole | null {
 }
 
 function isDemoEnabled(): boolean {
-  // لا يُفعّل وضع العرض في الإنتاج حتى لو كان NEXT_PUBLIC_DEMO=1.
-  // مطابق لسياسة الخادم في server-auth.ts.
+  // لا يُفعّل وضع العرض إلا في بيئة التطوير development إذا كان NEXT_PUBLIC_DEMO=1.
+  // مطابق لسياسة الخادم الصارمة في server-auth.ts.
   return (
     process.env.NEXT_PUBLIC_DEMO === "1" &&
-    process.env.NODE_ENV !== "production"
+    process.env.NODE_ENV === "development"
   );
 }
 

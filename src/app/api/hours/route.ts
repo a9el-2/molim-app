@@ -21,7 +21,10 @@ export async function GET(request: Request) {
 
   const supabase = getSupabaseServerClient();
   if (!supabase) {
-    return NextResponse.json({ error: "Supabase غير مكوّن." }, { status: 503 });
+    return NextResponse.json(
+      { error: "الخدمة غير متاحة مؤقتاً. حاول لاحقاً." },
+      { status: 503 }
+    );
   }
 
   const { data: rows, error } = await supabase
@@ -52,7 +55,10 @@ export async function POST(request: Request) {
 
   const supabase = getSupabaseServerClient();
   if (!supabase) {
-    return NextResponse.json({ error: "Supabase غير مكوّن." }, { status: 503 });
+    return NextResponse.json(
+      { error: "الخدمة غير متاحة مؤقتاً. حاول لاحقاً." },
+      { status: 503 }
+    );
   }
 
   let body: Record<string, unknown> = {};

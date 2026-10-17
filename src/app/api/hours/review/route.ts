@@ -23,7 +23,10 @@ export async function GET(request: Request) {
 
   const supabase = getSupabaseServerClient();
   if (!supabase) {
-    return NextResponse.json({ error: "Supabase غير مكوّن." }, { status: 503 });
+    return NextResponse.json(
+      { error: "الخدمة غير متاحة مؤقتاً. حاول لاحقاً." },
+      { status: 503 }
+    );
   }
 
   // 1) قراءة بيانات المراجع الحالية من جدول users لضمان الدقة

@@ -90,14 +90,14 @@ export function validateTelegramInitData(
   };
 }
 
-export const TELEGRAM_INIT_MAX_AGE_SEC = 86400;
+export const TELEGRAM_INIT_MAX_AGE_SEC = 21600;
 export const TELEGRAM_CLOCK_SKEW_SEC = 30;
 
 /**
  * التحقق من صلاحية auth_date.
  * - يرفض المنتهي الصلاحية (أقدم من maxAgeSec).
  * - يرفض التواريخ المستقبلية غير المقبولة (أبعد من هامش انحراف الساعة).
- * الحد الأقصى الحالي (24 ساعة) محفوظ كما هو.
+ * الحد الأقصى الحالي (6 ساعات / 21600 ثانية).
  */
 export function isTelegramInitDataFresh(
   authDate: string,

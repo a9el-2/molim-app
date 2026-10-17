@@ -16,6 +16,13 @@ export default function RoleSwitcher() {
   const { user, role, switchRole } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
+  if (
+    process.env.NODE_ENV !== "development" ||
+    process.env.NEXT_PUBLIC_DEMO !== "1"
+  ) {
+    return null;
+  }
+
   const rolesList: UserRole[] = [
     "VOLUNTEER",
     "DEPARTMENT_HEAD",

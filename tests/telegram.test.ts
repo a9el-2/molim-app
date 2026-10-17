@@ -11,6 +11,12 @@ import {
 
 const NOW = 1_800_000_000;
 
+test("TELEGRAM_INIT_MAX_AGE_SEC: محدد بـ 21600 ثانية (6 ساعات)", () => {
+  assert.equal(TELEGRAM_INIT_MAX_AGE_SEC, 21600);
+  assert.equal(isTelegramInitDataFresh(String(NOW - 5 * 3600), undefined, undefined, NOW), true);
+  assert.equal(isTelegramInitDataFresh(String(NOW - 7 * 3600), undefined, undefined, NOW), false);
+});
+
 test("auth_date: التاريخ الطبيعي (الآن) مقبول", () => {
   assert.equal(isTelegramInitDataFresh(String(NOW), undefined, undefined, NOW), true);
 });
