@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import PageShell from "../components/PageShell";
 import Card from "../components/Card";
 import Button from "../components/Button";
+import PageTitle from "../components/PageTitle";
 import { useAuth } from "../lib/auth-context";
 import { ROLE_NAMES } from "../lib/roles";
 import { fetchUser, statusToArabic, formatJoinDate } from "../lib/supabase/dto";

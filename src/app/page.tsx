@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import Card from "./components/Card";
 import Button from "./components/Button";
 import PageShell from "./components/PageShell";
+import PageTitle from "./components/PageTitle";
 import { useAuth } from "./lib/auth-context";
 import type { UserRole } from "./lib/roles";
 
@@ -99,19 +100,11 @@ export default function Home() {
   return (
     <PageShell>
       {/* مقدمة الصفحة */}
-      <section className="mb-6">
-        <p className="text-sm font-bold text-molim-blue">
-          {roleName}
-        </p>
-
-        <h1 className="mt-2 text-3xl font-black">
-          أهلًا، {user.name}
-        </h1>
-
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-molim-muted">
-          {roleMessage}
-        </p>
-      </section>
+      <PageTitle
+        category={roleName}
+        title={`أهلًا، ${user.name}`}
+        description={roleMessage}
+      />
 
       {/* المعلومات الأساسية */}
       <section className="grid gap-4 md:grid-cols-3">
