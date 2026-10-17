@@ -22,6 +22,7 @@ import {
   buildMemberInsertPayload,
   DEFAULT_MEMBER_ROLE,
 } from "../../lib/member-payload";
+import { buildMemberCreateAuditPayload } from "../../lib/members-payload";
 
 
 type SupabaseServer = NonNullable<ReturnType<typeof getSupabaseServerClient>>;
@@ -156,9 +157,56 @@ export async function POST(request: Request) {
     );
   }
 
+  // كتابة سجل التدقيق إجبارياً بعد نجاح الإدراج
+  const auditPayload = buildMemberCreateAuditPayload({
+    actorId: auth.user.id,
+    memberId: created.id,
+    departmentId: insertPayload.department_id,
+    role: insertPayload.role,
+    status: insertPayload.status,
+    profileCompleted: insertPayload.profile_completed,
+    details: "إضافة عضو جديد في المنصة",
+  });
+
+  const { error: auditError } = await supabase
+    .from("audit_logs")
+    .insert(auditPayload);
+
+  if (auditError) {
+    // التراجع بحذف العضو الذي أُنشئ للتو بشرط معرّفه فقط
+    const { error: deleteError } = await supabase
+      .from("users")
+      .delete()
+      .eq("id", created.id);
+
+    if (deleteError) {
+      console.error(
+        "[POST /api/members] فشل حذف العضو بعد خطأ في سجل التدقيق:",
+        created.id,
+        deleteError
+      );
+      return NextResponse.json(
+        {
+          error:
+            "تعذر توثيق العملية في سجل التدقيق وفشل التراجع عن إنشاء العضو. تواصل مع الإدارة.",
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        error:
+          "تعذر توثيق العملية في سجل التدقيق. أُلغيت العملية للحفاظ على النزاهة.",
+      },
+      { status: 500 }
+    );
+  }
+
   return NextResponse.json({
     member: { id: created.id },
     linkCode,
     expiresAt,
   });
 }
+

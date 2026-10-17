@@ -8,6 +8,11 @@ import {
   isSelf,
 } from "../../../lib/access-control";
 import type { UserRole } from "../../../lib/roles";
+import {
+  buildMemberRoleAuditPayload,
+  buildMemberStatusAuditPayload,
+  type MemberAuditLogInsertPayload,
+} from "../../../lib/members-payload";
 
 function pickName(row: Record<string, unknown>): string {
   if (typeof row.name === "string" && row.name) return row.name;
@@ -101,20 +106,30 @@ export async function PATCH(
 
   const { id } = await params;
 
-  let body: { field?: string; value?: string } = {};
+  let body: Record<string, unknown> = {};
   try {
     body = await request.json();
   } catch {
     body = {};
   }
 
-  const { field, value } = body;
+  let requestedRole: string | undefined;
+  let requestedStatus: string | undefined;
 
-  if (
-    (field !== "status" && field !== "role") ||
-    typeof value !== "string" ||
-    !value.trim()
-  ) {
+  if (body.field === "role" && typeof body.value === "string") {
+    requestedRole = body.value.trim();
+  } else if (body.field === "status" && typeof body.value === "string") {
+    requestedStatus = body.value.trim();
+  }
+
+  if (typeof body.role === "string" && body.role.trim()) {
+    requestedRole = body.role.trim();
+  }
+  if (typeof body.status === "string" && body.status.trim()) {
+    requestedStatus = body.status.trim();
+  }
+
+  if (!requestedRole && !requestedStatus) {
     return NextResponse.json(
       { error: "بيانات غير صالحة." },
       { status: 400 }
@@ -129,10 +144,10 @@ export async function PATCH(
     );
   }
 
-  // نجلب دور العضو الحالي لحماية الحسابات الحساسة قبل اتخاذ القرار.
+  // نجلب دور وحالة وقسم العضو الحالي لحماية الحسابات الحساسة وبناء التدقيق بدقة.
   const { data: target, error: targetError } = await supabase
     .from("users")
-    .select("id, role")
+    .select("id, role, status, department_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -147,31 +162,171 @@ export async function PATCH(
     return NextResponse.json({ error: "العضو غير موجود." }, { status: 404 });
   }
 
-  const decision = decideMemberUpdate({
-    requesterRole: auth.user.role,
-    requesterId: auth.user.id,
-    targetId: id,
-    targetRole: target.role as UserRole,
-    field,
-    newValue: value,
-  });
+  // فحص الصلاحيات لكل حقل مطلوب تعديله
+  if (requestedRole) {
+    const roleDecision = decideMemberUpdate({
+      requesterRole: auth.user.role,
+      requesterId: auth.user.id,
+      targetId: id,
+      targetRole: target.role as UserRole,
+      field: "role",
+      newValue: requestedRole,
+    });
 
-  if (!decision.allowed) {
-    const status =
-      decision.reason === "invalid_role" || decision.reason === "invalid_status"
-        ? 400
-        : 403;
-    return NextResponse.json({ error: decision.message }, { status });
+    if (!roleDecision.allowed) {
+      const status =
+        roleDecision.reason === "invalid_role" ||
+        roleDecision.reason === "invalid_status"
+          ? 400
+          : 403;
+      return NextResponse.json({ error: roleDecision.message }, { status });
+    }
   }
 
-  const { error } = await supabase
+  if (requestedStatus) {
+    const statusDecision = decideMemberUpdate({
+      requesterRole: auth.user.role,
+      requesterId: auth.user.id,
+      targetId: id,
+      targetRole: target.role as UserRole,
+      field: "status",
+      newValue: requestedStatus,
+    });
+
+    if (!statusDecision.allowed) {
+      const status =
+        statusDecision.reason === "invalid_role" ||
+        statusDecision.reason === "invalid_status"
+          ? 400
+          : 403;
+      return NextResponse.json({ error: statusDecision.message }, { status });
+    }
+  }
+
+  const updatePayload: Record<string, string> = {};
+  if (requestedRole !== undefined) {
+    updatePayload.role = requestedRole;
+  }
+  if (requestedStatus !== undefined) {
+    updatePayload.status = requestedStatus;
+  }
+
+  // التحديث المشروط بأن القيمة القديمة ما زالت كما قُرأت (منع تعارض التعديلات المتزامنة)
+  let updateQuery = supabase
     .from("users")
-    .update({ [field]: value })
+    .update(updatePayload)
     .eq("id", id);
 
-  if (error) {
+  if (updatePayload.role !== undefined) {
+    updateQuery = updateQuery.eq("role", target.role);
+  }
+  if (updatePayload.status !== undefined) {
+    updateQuery = updateQuery.eq("status", target.status);
+  }
+
+  const { data: updatedRecord, error: updateError } = await updateQuery
+    .select("id, role, status, department_id")
+    .maybeSingle();
+
+  if (updateError || !updatedRecord) {
+    if (updateError) {
+      return NextResponse.json(
+        { error: "تعذر تحديث المستخدم." },
+        { status: 500 }
+      );
+    }
+    // لم يطابق شرط القيمة السابقة (تغيّرت من قبل مستخدم آخر في الأثناء) -> 409 بدون تدقيق
     return NextResponse.json(
-      { error: "تعذر تحديث المستخدم." },
+      {
+        error:
+          "تعذر تحديث بيانات العضو؛ تم تعديلها من قِبل مستخدم آخر. حدّث الصفحة وحاول مرة أخرى.",
+      },
+      { status: 409 }
+    );
+  }
+
+  // بناء سجلات التدقيق: سجل لكل حقل متغيّر
+  const auditPayloads: MemberAuditLogInsertPayload[] = [];
+  const deptId = target.department_id ? String(target.department_id) : null;
+  const roleChanged =
+    updatePayload.role !== undefined && updatePayload.role !== target.role;
+  const statusChanged =
+    updatePayload.status !== undefined && updatePayload.status !== target.status;
+
+  if (roleChanged || (updatePayload.role !== undefined && !statusChanged)) {
+    auditPayloads.push(
+      buildMemberRoleAuditPayload({
+        actorId: auth.user.id,
+        memberId: String(id),
+        departmentId: deptId,
+        oldRole: String(target.role),
+        newRole: updatePayload.role,
+      })
+    );
+  }
+
+  if (statusChanged || (updatePayload.status !== undefined && !roleChanged)) {
+    auditPayloads.push(
+      buildMemberStatusAuditPayload({
+        actorId: auth.user.id,
+        memberId: String(id),
+        departmentId: deptId,
+        oldStatus: String(target.status),
+        newStatus: updatePayload.status,
+      })
+    );
+  }
+
+  const { error: auditError } = await supabase
+    .from("audit_logs")
+    .insert(auditPayloads);
+
+  if (auditError) {
+    // التراجع عن التعديل بشرط أن القيمة ما زالت الجديدة
+    const rollbackPayload: Record<string, string> = {};
+    if (updatePayload.role !== undefined) {
+      rollbackPayload.role = String(target.role);
+    }
+    if (updatePayload.status !== undefined) {
+      rollbackPayload.status = String(target.status);
+    }
+
+    let rollbackQuery = supabase
+      .from("users")
+      .update(rollbackPayload)
+      .eq("id", id);
+
+    if (updatePayload.role !== undefined) {
+      rollbackQuery = rollbackQuery.eq("role", updatePayload.role);
+    }
+    if (updatePayload.status !== undefined) {
+      rollbackQuery = rollbackQuery.eq("status", updatePayload.status);
+    }
+
+    const { data: rolledBack, error: rollbackError } = await rollbackQuery
+      .select("id")
+      .maybeSingle();
+
+    if (rollbackError || !rolledBack) {
+      console.error(
+        "[PATCH /api/users/%s] فشل التراجع عن التعديل بعد خطأ في سجل التدقيق:",
+        id,
+        rollbackError || "البيانات تغيّرت قبل التراجع"
+      );
+      return NextResponse.json(
+        {
+          error:
+            "تعذر توثيق العملية وتعذر التراجع عن التعديل. تواصل مع الإدارة.",
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        error:
+          "تعذر توثيق العملية في سجل التدقيق. أُلغيت العملية للحفاظ على النزاهة.",
+      },
       { status: 500 }
     );
   }
