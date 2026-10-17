@@ -114,31 +114,35 @@ export const ROUTE_ACCESS_RULES: Record<string, UserRole[]> = {
   "/notifications": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
 };
 
+/**
+ * المسارات العامة التي لا تحتاج تسجيل دخول أو تحقق دور.
+ * أي مسار ليس هنا وليس في ROUTE_ACCESS_RULES يُرفض افتراضياً (Fail-Closed).
+ */
+export const PUBLIC_ROUTES: readonly string[] = [
+  "/",
+  "/link",
+  "/register",
+  "/join",
+  "/welcome",
+  "/workflow",
+  "/structure",
+  "/suggestions",
+  "/complete-profile",
+];
+
 export function canAccessRoute(role: UserRole, pathname: string): boolean {
   // تطبيع المسار
   const cleanPath = pathname.split("?")[0].replace(/\/$/, "") || "/";
 
   // الصفحات العامة المفتوحة للجميع
-  if (
-    [
-      "/",
-      "/link",
-      "/register",
-      "/join",
-      "/welcome",
-      "/workflow",
-      "/structure",
-      "/suggestions",
-      "/complete-profile",
-    ].includes(cleanPath)
-  ) {
+  if (PUBLIC_ROUTES.includes(cleanPath)) {
     return true;
   }
 
   const allowedRoles = ROUTE_ACCESS_RULES[cleanPath];
   if (!allowedRoles) {
-    // إذا لم يكن المسار مسجلاً في القيود، يكون متاحاً افتراضياً
-    return true;
+    // Fail-Closed: أي مسار غير مسجّل يُرفض افتراضياً
+    return false;
   }
 
   return allowedRoles.includes(role);

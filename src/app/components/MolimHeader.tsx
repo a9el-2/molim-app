@@ -195,10 +195,6 @@ export default function MolimHeader() {
       href: "/agreements",
     },
     {
-      title: "طلبات الشهادات",
-      href: "/certificate-requests",
-    },
-    {
       title: "إضافة الأعضاء",
       href: "/invitations",
     },
