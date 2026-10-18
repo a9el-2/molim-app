@@ -67,7 +67,7 @@ export default function Home() {
     }
   }, [status, isReady, user, role, router]);
 
-  if (!isReady) {
+  if (!isReady || status === "loading") {
     return (
       <PageShell>
         <div className="flex min-h-[60vh] items-center justify-center">
@@ -82,14 +82,14 @@ export default function Home() {
     );
   }
 
-  if (status !== "demo") {
+  if (status === "needs_linking" || status === "unauthenticated") {
     return (
       <PageShell>
         <div className="flex min-h-[60vh] items-center justify-center">
           <div className="flex flex-col items-center gap-3 text-molim-muted">
             <span className="h-8 w-8 animate-spin rounded-full border-2 border-molim-orange border-t-transparent" />
             <span className="text-sm font-bold">
-              جاري تجهيز حسابك...
+              جاري توجيهك...
             </span>
           </div>
         </div>
