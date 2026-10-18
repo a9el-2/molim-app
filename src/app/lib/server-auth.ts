@@ -101,10 +101,11 @@ export async function authenticateRequest(
 
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   if (!botToken) {
+    console.error("TELEGRAM_BOT_TOKEN غير معرّف على الخادم.");
     return {
       ok: false,
       response: NextResponse.json(
-        { error: "TELEGRAM_BOT_TOKEN غير معرّف على الخادم." },
+        { error: "الخدمة غير متاحة مؤقتاً. حاول لاحقاً." },
         { status: 500 }
       ),
     };

@@ -19,8 +19,9 @@ import { TELEGRAM_INIT_HEADER } from "../../../lib/server-auth";
 export async function POST(request: Request) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   if (!botToken) {
+    console.error("TELEGRAM_BOT_TOKEN غير معرّف على الخادم.");
     return NextResponse.json(
-      { error: "TELEGRAM_BOT_TOKEN غير معرّف على الخادم." },
+      { error: "الخدمة غير متاحة مؤقتاً. حاول لاحقاً." },
       { status: 500 }
     );
   }
