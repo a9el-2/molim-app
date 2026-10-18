@@ -183,18 +183,20 @@ export default function MolimHeader() {
           {/* شعار مُلم */}
           <Link
             href="/"
-            className="flex items-center gap-2"
+            className="flex items-center gap-2.5"
           >
-            <div className="flex h-10 w-10 items-center justify-center bg-molim-orange text-lg font-black text-white">
-              م
-            </div>
+            <img
+              src="/logo.png"
+              alt="شعار مُلم"
+              className="h-10 w-10 object-contain rounded-lg"
+            />
 
             <div className="text-right">
-              <p className="text-[10px] text-molim-muted">
+              <p className="text-[10px] text-molim-muted leading-tight">
                 منصة الفريق
               </p>
 
-              <p className="text-base font-black">
+              <p className="text-base font-black leading-tight">
                 مُلم
               </p>
             </div>

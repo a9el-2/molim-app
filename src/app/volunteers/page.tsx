@@ -153,16 +153,18 @@ export default function VolunteersPage() {
         {/* الهيدر */}
         <header className="flex items-center justify-between border-b border-[#202124]/10 pb-4">
           <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center bg-[#ed542f] text-xl font-black text-white">
-              م
-            </div>
+            <img
+              src="/logo.png"
+              alt="شعار مُلم"
+              className="h-11 w-11 object-contain rounded-lg"
+            />
 
             <div>
-              <p className="text-[11px] text-molim-muted">
+              <p className="text-[11px] text-molim-muted leading-tight">
                 منصة الإدارة
               </p>
 
-              <h1 className="text-lg font-black text-molim-foreground">
+              <h1 className="text-lg font-black text-molim-foreground leading-tight">
                 مُلم
               </h1>
             </div>
