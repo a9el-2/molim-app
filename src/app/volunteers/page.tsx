@@ -21,91 +21,21 @@ type Volunteer = {
   joinedAt: string;
 };
 
-const mockVolunteers: Volunteer[] = [
-  {
-    id: 1,
-    name: "محمد أحمد",
-    molimId: "MOL-00012",
-    department: "الإعلام",
-    role: "متطوع",
-    status: "نشط",
-    hours: 86,
-    agreement: "سارية",
-    joinedAt: "12 أغسطس 2026",
-  },
-  {
-    id: 2,
-    name: "سارة علي",
-    molimId: "MOL-00018",
-    department: "البحث",
-    role: "متطوعة",
-    status: "نشط",
-    hours: 64,
-    agreement: "سارية",
-    joinedAt: "08 أغسطس 2026",
-  },
-  {
-    id: 3,
-    name: "أحمد خالد",
-    molimId: "MOL-00021",
-    department: "الإدارة",
-    role: "رئيس قسم",
-    status: "نشط",
-    hours: 173,
-    agreement: "سارية",
-    joinedAt: "02 يوليو 2026",
-  },
-  {
-    id: 4,
-    name: "نورة عبدالله",
-    molimId: "MOL-00027",
-    department: "الموارد البشرية",
-    role: "متطوعة",
-    status: "بانتظار الاعتماد",
-    hours: 0,
-    agreement: "لم تبدأ",
-    joinedAt: "01 سبتمبر 2026",
-  },
-  {
-    id: 5,
-    name: "خالد حسن",
-    molimId: "MOL-00031",
-    department: "الإعلام",
-    role: "متطوع",
-    status: "موقوف",
-    hours: 31,
-    agreement: "منتهية",
-    joinedAt: "17 يونيو 2026",
-  },
-  {
-    id: 6,
-    name: "ليان محمد",
-    molimId: "MOL-00035",
-    department: "التسويق",
-    role: "متطوعة",
-    status: "نشط",
-    hours: 112,
-    agreement: "سارية",
-    joinedAt: "22 يوليو 2026",
-  },
-];
-
 export default function VolunteersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("الكل");
   const [selectedVolunteer, setSelectedVolunteer] =
     useState<Volunteer | null>(null);
-  const [volunteers, setVolunteers] = useState<Volunteer[]>(mockVolunteers);
+  const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchUsers().then((users) => {
-      if (!users) return;
-
-      setVolunteers(
-        users
-          .map((user, index) => ({
+      if (users) {
+        setVolunteers(
+          users.map((user, index) => ({
             id: index + 1,
             name: user.name,
             molimId: user.id,
@@ -121,7 +51,9 @@ export default function VolunteersPage() {
               user.joinedAt ?? user.createdAt
             ),
           }))
-      );
+        );
+      }
+      setIsLoading(false);
     });
   }, []);
 
@@ -220,7 +152,7 @@ export default function VolunteersPage() {
       <div className="relative mx-auto max-w-md px-5 pb-14 pt-7">
         {/* الهيدر */}
         <header className="flex items-center justify-between border-b border-[#202124]/10 pb-4">
-          <a href="/dashboard" className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center bg-[#ed542f] text-xl font-black text-white">
               م
             </div>
@@ -234,24 +166,16 @@ export default function VolunteersPage() {
                 مُلم
               </h1>
             </div>
-          </a>
+          </Link>
 
           <div className="flex items-center gap-2">
-            <a
-              href="/notifications"
-              className="flex h-10 w-10 items-center justify-center border border-molim bg-molim-soft text-lg"
-              aria-label="الإشعارات"
-            >
-              🔔
-            </a>
-
-            <a
-              href="/dashboard"
+            <Link
+              href="/"
               className="flex h-10 w-10 items-center justify-center border border-molim bg-molim-soft text-lg text-molim-muted"
               aria-label="العودة"
             >
               ←
-            </a>
+            </Link>
           </div>
         </header>
 
@@ -384,7 +308,14 @@ export default function VolunteersPage() {
             </div>
           </div>
 
-          {filteredVolunteers.length > 0 ? (
+          {isLoading ? (
+            <div className="border border-molim bg-molim-soft p-8 text-center">
+              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-[#ed542f] border-t-transparent" />
+              <p className="mt-3 text-sm font-bold text-molim-muted">
+                جاري تحميل بيانات المتطوعين...
+              </p>
+            </div>
+          ) : filteredVolunteers.length > 0 ? (
             <div className="space-y-2">
               {filteredVolunteers.map((volunteer) => (
                 <button
@@ -459,8 +390,8 @@ export default function VolunteersPage() {
 
         {/* إجراءات */}
         <section className="mt-8 grid grid-cols-2 gap-2">
-          <button
-            type="button"
+          <Link
+            href="/invitations"
             className="border border-molim bg-molim-soft p-4 text-right transition hover:border-[#ed542f]"
           >
             <div className="flex h-9 w-9 items-center justify-center bg-[#ed542f]/10 text-[#ed542f]">
@@ -468,30 +399,30 @@ export default function VolunteersPage() {
             </div>
 
             <p className="mt-3 text-sm font-black text-molim-foreground">
-              إضافة متطوع
+              الدعوات
             </p>
 
             <p className="mt-1 text-[11px] leading-5 text-molim-muted">
-              إضافة عضو جديد وربطه
+              إدارة دعوات الأعضاء الجدد
             </p>
-          </button>
+          </Link>
 
-          <a
-            href="/dashboard"
+          <Link
+            href="/roles"
             className="border border-molim bg-molim-soft p-4 text-right transition hover:border-[#ed542f]"
           >
             <div className="flex h-9 w-9 items-center justify-center bg-molim-soft text-molim-foreground">
-              ▥
+              👥
             </div>
 
             <p className="mt-3 text-sm font-black text-molim-foreground">
-              التقارير
+              الأدوار والصلاحيات
             </p>
 
             <p className="mt-1 text-[11px] leading-5 text-molim-muted">
-              متابعة مؤشرات المتطوعين
+              إدارة رتب وأدوار الفريق
             </p>
-          </a>
+          </Link>
         </section>
 
         {/* تنبيه الخصوصية */}

@@ -89,22 +89,6 @@ export default function MolimHeader() {
       href: "/hours",
     },
     {
-      title: "الشهادات",
-      href: "/certificates",
-    },
-    {
-      title: "اتفاقية التطوع",
-      href: "/agreement",
-    },
-    {
-      title: "قسمي",
-      href: "/department",
-    },
-    {
-      title: "الإشعارات",
-      href: "/notifications",
-    },
-    {
       title: "حسابي",
       href: "/account",
     },
@@ -126,10 +110,6 @@ export default function MolimHeader() {
       title: "مراجعة الساعات",
       href: "/hours-review",
     },
-    {
-      title: "أعضاء القسم",
-      href: "/department",
-    },
   ];
 
   /* =========================================
@@ -145,20 +125,8 @@ export default function MolimHeader() {
       href: "/volunteers",
     },
     {
-      title: "الاتفاقيات",
-      href: "/agreements",
-    },
-    {
-      title: "طلبات الشهادات",
-      href: "/certificate-requests",
-    },
-    {
       title: "إضافة الأعضاء",
       href: "/invitations",
-    },
-    {
-      title: "التقارير",
-      href: "/reports",
     },
   ];
 
@@ -167,20 +135,12 @@ export default function MolimHeader() {
      ========================================= */
   const adminMenu: MenuItem[] = [
     {
-      title: "لوحة القيادة",
-      href: "/dashboard",
-    },
-    {
       title: "مراجعة الساعات",
       href: "/hours-review",
     },
     {
       title: "المتطوعون",
       href: "/volunteers",
-    },
-    {
-      title: "الأقسام",
-      href: "/departments",
     },
     {
       title: "مراجعة المهام",
@@ -191,16 +151,8 @@ export default function MolimHeader() {
       href: "/hours",
     },
     {
-      title: "الاتفاقيات",
-      href: "/agreements",
-    },
-    {
       title: "إضافة الأعضاء",
       href: "/invitations",
-    },
-    {
-      title: "التقارير",
-      href: "/reports",
     },
   ];
 
@@ -209,24 +161,12 @@ export default function MolimHeader() {
      ========================================= */
   const superAdminMenu: MenuItem[] = [
     {
-      title: "مركز الإعلانات والتنبيهات",
-      href: "/announcements",
-    },
-    {
-      title: "إدارة الموارد البشرية",
-      href: "/hr",
-    },
-    {
       title: "الأدوار والصلاحيات",
       href: "/roles",
     },
     {
       title: "سجل العمليات",
       href: "/audit-log",
-    },
-    {
-      title: "الإعدادات",
-      href: "/settings",
     },
   ];
 

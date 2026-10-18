@@ -25,10 +25,10 @@ const ROLE_MESSAGES = {
 
 const ROLE_HOME: Record<UserRole, string> = {
   VOLUNTEER: "/tasks",
-  DEPARTMENT_HEAD: "/department",
-  HR: "/hr",
-  ADMIN: "/dashboard",
-  SUPER_ADMIN: "/dashboard",
+  DEPARTMENT_HEAD: "/",
+  HR: "/",
+  ADMIN: "/",
+  SUPER_ADMIN: "/",
 };
 
 export default function Home() {
@@ -61,7 +61,7 @@ export default function Home() {
       }
 
       const target = ROLE_HOME[user?.role || role];
-      if (target) {
+      if (target && target !== "/") {
         router.replace(target);
       }
     }
@@ -116,7 +116,6 @@ export default function Home() {
         <InfoCard
           title="القسم"
           value={user.department}
-          href="/department"
         />
 
         <InfoCard
@@ -241,21 +240,6 @@ export default function Home() {
               الفريق
             </div>
           </div>
-
-          <div className="mt-5 border-t border-molim pt-4">
-            <p className="text-sm leading-6 text-molim-muted">
-              يمكنك متابعة أعضاء قسمك والمهام المرتبطة بالقسم
-              من صفحة القسم.
-            </p>
-
-            <div className="mt-4">
-              <Link href="/department">
-                <Button variant="secondary">
-                  عرض القسم
-                </Button>
-              </Link>
-            </div>
-          </div>
         </Card>
       </section>
 
@@ -328,14 +312,20 @@ export default function Home() {
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-molim-muted">
-              الخيارات الإدارية الخاصة بالموارد البشرية موجودة
-              في القائمة الجانبية.
+              يمكنك متابعة المتطوعين وإضافة الأعضاء ومراجعة
+              الساعات مباشرة.
             </p>
 
-            <div className="mt-4">
-              <Link href="/hr">
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link href="/volunteers">
                 <Button variant="secondary">
-                  فتح الموارد البشرية
+                  المتطوعون
+                </Button>
+              </Link>
+
+              <Link href="/invitations">
+                <Button variant="outline">
+                  إضافة الأعضاء
                 </Button>
               </Link>
             </div>
@@ -349,18 +339,24 @@ export default function Home() {
             </p>
 
             <h2 className="mt-1 text-lg font-black">
-              لوحة المتابعة الإدارية
+              متابعة شؤون الفريق
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-molim-muted">
-              جميع الأدوات الإدارية موجودة داخل القائمة الجانبية
-              حتى تبقى الصفحة الرئيسية بسيطة.
+              يمكنك متابعة المتطوعين ومراجعة المهام والساعات
+              من القائمة الجانبية.
             </p>
 
-            <div className="mt-4">
-              <Link href="/dashboard">
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link href="/volunteers">
                 <Button variant="secondary">
-                  لوحة القيادة
+                  المتطوعون
+                </Button>
+              </Link>
+
+              <Link href="/task-review">
+                <Button variant="outline">
+                  مراجعة المهام
                 </Button>
               </Link>
             </div>
@@ -378,20 +374,20 @@ export default function Home() {
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-molim-muted">
-              الأدوات والصلاحيات الإدارية المتقدمة موجودة داخل
-              القائمة الجانبية.
+              الأدوار والصلاحيات الإدارية وسجل العمليات متاحة
+              لك مباشرة.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              <Link href="/dashboard">
+              <Link href="/roles">
                 <Button variant="secondary">
-                  لوحة القيادة
+                  الأدوار والصلاحيات
                 </Button>
               </Link>
 
-              <Link href="/settings">
+              <Link href="/audit-log">
                 <Button variant="outline">
-                  الإعدادات
+                  سجل العمليات
                 </Button>
               </Link>
             </div>

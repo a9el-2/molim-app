@@ -138,18 +138,7 @@ export default function AccountPage() {
           />
         </div>
 
-        {/* عرض الاتفاقية */}
-        <Link
-          href="/agreement"
-          className="mt-4 block"
-        >
-          <Button
-            variant="secondary"
-            className="w-full"
-          >
-            عرض الاتفاقية
-          </Button>
-        </Link>
+
       </Card>
 
       {/* البيانات الشخصية */}

@@ -20,54 +20,6 @@ type RoleMember = {
 
 type FilterType = "الكل" | UserRole;
 
-const initialMembers: RoleMember[] = [
-  {
-    id: 1,
-    name: "أصيل",
-    molimId: "MOL-00001",
-    role: "SUPER_ADMIN",
-    department: "الإدارة",
-    status: "نشط",
-    lastUpdated: "2026/09/03",
-  },
-  {
-    id: 2,
-    name: "خالد علي",
-    molimId: "MOL-00008",
-    role: "HR",
-    department: "الموارد البشرية",
-    status: "نشط",
-    lastUpdated: "2026/09/02",
-  },
-  {
-    id: 3,
-    name: "أحمد خالد",
-    molimId: "MOL-00010",
-    role: "DEPARTMENT_HEAD",
-    department: "الإعلام",
-    status: "نشط",
-    lastUpdated: "2026/08/31",
-  },
-  {
-    id: 4,
-    name: "محمد أحمد",
-    molimId: "MOL-00012",
-    role: "VOLUNTEER",
-    department: "الإدارة",
-    status: "نشط",
-    lastUpdated: "2026/08/30",
-  },
-  {
-    id: 5,
-    name: "سارة محمد",
-    molimId: "MOL-00015",
-    role: "VOLUNTEER",
-    department: "البحث",
-    status: "نشط",
-    lastUpdated: "2026/08/29",
-  },
-];
-
 const roleFilters: FilterType[] = [
   "الكل",
   "SUPER_ADMIN",
@@ -80,8 +32,8 @@ const roleFilters: FilterType[] = [
 export default function RolesPage() {
   const { user: sessionUser } = useAuth();
 
-  const [members, setMembers] =
-    useState<RoleMember[]>(initialMembers);
+  const [members, setMembers] = useState<RoleMember[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [activeFilter, setActiveFilter] =
     useState<FilterType>("الكل");
@@ -102,19 +54,20 @@ export default function RolesPage() {
 
   useEffect(() => {
     fetchUsers().then((users) => {
-      if (!users) return;
-
-      setMembers(
-        users.map((user, index) => ({
-          id: index + 1,
-          name: user.name,
-          molimId: user.id,
-          role: user.role as UserRole,
-          department: user.department === "غير محدد" ? "غير محدد" : user.department,
-          status: toMemberStatus(user.status),
-          lastUpdated: formatLastUpdated(user.updatedAt ?? user.createdAt),
-        }))
-      );
+      if (users) {
+        setMembers(
+          users.map((user, index) => ({
+            id: index + 1,
+            name: user.name,
+            molimId: user.id,
+            role: user.role as UserRole,
+            department: user.department === "غير محدد" ? "غير محدد" : user.department,
+            status: toMemberStatus(user.status),
+            lastUpdated: formatLastUpdated(user.updatedAt ?? user.createdAt),
+          }))
+        );
+      }
+      setIsLoading(false);
     });
   }, []);
 
@@ -380,7 +333,14 @@ export default function RolesPage() {
             </span>
           </div>
 
-          {filteredMembers.length === 0 ? (
+          {isLoading ? (
+            <div className="border border-molim bg-molim-surface p-10 text-center">
+              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-[#ed542f] border-t-transparent" />
+              <p className="mt-3 text-sm font-bold text-molim-muted">
+                جاري تحميل بيانات الأعضاء...
+              </p>
+            </div>
+          ) : filteredMembers.length === 0 ? (
             <div className="border border-dashed border-molim bg-molim-surface p-10 text-center">
               <p className="font-semibold">
                 لا توجد نتائج

@@ -7,6 +7,7 @@ import {
   canAccessRoute,
   ROUTE_ACCESS_RULES,
   PUBLIC_ROUTES,
+  DISABLED_ROUTES,
 } from "../src/app/lib/roles.ts";
 import type { UserRole } from "../src/app/lib/roles.ts";
 
@@ -41,21 +42,22 @@ const allRoutes = allPages.map((p) => filePathToRoute(p, APP_DIR));
 
 /* =========================================
    اختبار التغطية: كل صفحة page.tsx يجب أن تكون
-   مسجّلة في ROUTE_ACCESS_RULES أو في PUBLIC_ROUTES
+   مسجّلة في ROUTE_ACCESS_RULES أو في PUBLIC_ROUTES أو DISABLED_ROUTES
    ========================================= */
-test("كل ملف page.tsx مسجّل إما في ROUTE_ACCESS_RULES أو PUBLIC_ROUTES", () => {
+test("كل ملف page.tsx مسجّل إما في ROUTE_ACCESS_RULES أو PUBLIC_ROUTES أو DISABLED_ROUTES", () => {
   const missing: string[] = [];
   for (const route of allRoutes) {
     const inRules = route in ROUTE_ACCESS_RULES;
     const inPublic = PUBLIC_ROUTES.includes(route);
-    if (!inRules && !inPublic) {
+    const inDisabled = (DISABLED_ROUTES as readonly string[]).includes(route);
+    if (!inRules && !inPublic && !inDisabled) {
       missing.push(route);
     }
   }
   assert.deepEqual(
     missing,
     [],
-    `الصفحات التالية غير مسجّلة في ROUTE_ACCESS_RULES ولا PUBLIC_ROUTES:\n${missing.join("\n")}`
+    `الصفحات التالية غير مسجّلة في ROUTE_ACCESS_RULES ولا PUBLIC_ROUTES ولا DISABLED_ROUTES:\n${missing.join("\n")}`
   );
 });
 
@@ -88,16 +90,20 @@ test("مسار /roles يقبل SUPER_ADMIN فقط ويرفض الباقي", () =
   }
 });
 
-test("مسار /certificate-requests يقبل HR و SUPER_ADMIN فقط", () => {
-  assert.equal(canAccessRoute("HR", "/certificate-requests"), true);
-  assert.equal(canAccessRoute("SUPER_ADMIN", "/certificate-requests"), true);
-  const denied: UserRole[] = ["VOLUNTEER", "DEPARTMENT_HEAD", "ADMIN"];
-  for (const role of denied) {
-    assert.equal(
-      canAccessRoute(role, "/certificate-requests"),
-      false,
-      `يُتوقع رفض ${role} من /certificate-requests`
-    );
+/* =========================================
+   اختبار: المسارات المعطلة DISABLED_ROUTES
+   مرفوضة تماماً لكل الأدوار الخمسة بما فيها SUPER_ADMIN
+   ========================================= */
+test("كل مسار في DISABLED_ROUTES مرفوض لكل الأدوار الخمسة بما فيها SUPER_ADMIN", () => {
+  const allRoles: UserRole[] = ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"];
+  for (const route of DISABLED_ROUTES) {
+    for (const role of allRoles) {
+      assert.equal(
+        canAccessRoute(role, route),
+        false,
+        `يُتوقع رفض ${role} من المسار المعطّل ${route}`
+      );
+    }
   }
 });
 

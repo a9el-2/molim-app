@@ -75,6 +75,21 @@ export const PERMISSIONS = {
   ],
 } as const;
 
+export const DISABLED_ROUTES: readonly string[] = [
+  "/dashboard",
+  "/reports",
+  "/agreements",
+  "/announcements",
+  "/certificate-requests",
+  "/notifications",
+  "/departments",
+  "/department",
+  "/certificates",
+  "/agreement",
+  "/settings",
+  "/hr",
+];
+
 /**
  * قواعد صلاحيات المسارات والصفحات في المنصة:
  * تحدد الرتب المسموح لها بالدخول لكل مسار.
@@ -82,20 +97,10 @@ export const PERMISSIONS = {
 export const ROUTE_ACCESS_RULES: Record<string, UserRole[]> = {
   // صفحات إدارة النظام العليا
   "/roles": ["SUPER_ADMIN"],
-  "/settings": ["SUPER_ADMIN"],
   "/audit-log": ["SUPER_ADMIN"],
 
-  // صفحات الإدارة العامة
-  "/dashboard": ["ADMIN", "SUPER_ADMIN"],
-  "/admin": ["ADMIN", "SUPER_ADMIN"],
-  "/departments": ["ADMIN", "SUPER_ADMIN"],
-  "/announcements": ["ADMIN", "SUPER_ADMIN"],
-
-  // صفحات الموارد البشرية
-  "/hr": ["HR", "SUPER_ADMIN"],
+  // صفحات الموارد البشرية وإدارة الأعضاء
   "/volunteers": ["HR", "ADMIN", "SUPER_ADMIN"],
-  "/agreements": ["HR", "ADMIN", "SUPER_ADMIN"],
-  "/certificate-requests": ["HR", "SUPER_ADMIN"],
   "/invitations": ["HR", "ADMIN", "SUPER_ADMIN"],
 
   // صفحات مراجعة الساعات والمهام
@@ -103,15 +108,11 @@ export const ROUTE_ACCESS_RULES: Record<string, UserRole[]> = {
   "/hours-review": ["DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
 
   // صفحات مشتركة أو مخصصة
-  "/reports": ["HR", "ADMIN", "SUPER_ADMIN"],
   "/add-task": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
   "/tasks": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
   "/hours": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
-  "/department": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
-  "/certificates": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
-  "/agreement": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
   "/account": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
-  "/notifications": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
+  "/profile": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
 };
 
 /**
@@ -121,18 +122,18 @@ export const ROUTE_ACCESS_RULES: Record<string, UserRole[]> = {
 export const PUBLIC_ROUTES: readonly string[] = [
   "/",
   "/link",
-  "/register",
   "/join",
-  "/welcome",
-  "/workflow",
-  "/structure",
-  "/suggestions",
   "/complete-profile",
 ];
 
 export function canAccessRoute(role: UserRole, pathname: string): boolean {
   // تطبيع المسار
   const cleanPath = pathname.split("?")[0].replace(/\/$/, "") || "/";
+
+  // المسارات المعطلة تُرفض قطعياً لكافة الأدوار بما فيها SUPER_ADMIN
+  if (DISABLED_ROUTES.includes(cleanPath)) {
+    return false;
+  }
 
   // الصفحات العامة المفتوحة للجميع
   if (PUBLIC_ROUTES.includes(cleanPath)) {

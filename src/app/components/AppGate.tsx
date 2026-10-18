@@ -8,11 +8,6 @@ import MolimHeader from "./MolimHeader";
 const PUBLIC_PAGES = [
   "/link",
   "/join",
-  "/register",
-  "/welcome",
-  "/workflow",
-  "/structure",
-  "/suggestions",
 ];
 
 function FullScreenLoader({ message }: { message: string }) {

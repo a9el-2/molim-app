@@ -17,27 +17,7 @@ export default function Footer() {
           نعمل معًا لصناعة أثر مستدام.
         </p>
 
-        <div className="mt-4 flex items-center justify-center gap-4 text-[11px]">
-          <Link
-            href="/agreement"
-            className="transition hover:opacity-70"
-          >
-            اتفاقية التطوع
-          </Link>
 
-          {user.role === "SUPER_ADMIN" && (
-            <>
-              <span className="opacity-30">|</span>
-
-              <Link
-                href="/settings"
-                className="transition hover:opacity-70"
-              >
-                الإعدادات
-              </Link>
-            </>
-          )}
-        </div>
 
         <p className="mt-5 border-t border-white/10 pt-4 text-[10px] opacity-50">
           مُلم © 2026
