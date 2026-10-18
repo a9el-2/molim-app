@@ -222,7 +222,7 @@ export default function DashboardPage() {
             title="مهام تحتاج مراجعة"
             value={pendingTasks}
             description="مهام لم تكتمل أو تحتاج إجراء."
-            href="/task-review"
+            href="/tasks"
             icon="🔎"
           />
 
@@ -383,8 +383,8 @@ export default function DashboardPage() {
             />
 
             <QuickAction
-              title="مراجعة المهام"
-              href="/task-review"
+              title="المهام"
+              href="/tasks"
               icon="📋"
             />
 

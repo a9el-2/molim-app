@@ -292,9 +292,9 @@ export default function Home() {
                 </Button>
               </Link>
 
-              <Link href="/task-review">
+              <Link href="/hours-review">
                 <Button variant="outline">
-                  مراجعة المهام
+                  مراجعة الساعات
                 </Button>
               </Link>
             </div>
@@ -354,9 +354,9 @@ export default function Home() {
                 </Button>
               </Link>
 
-              <Link href="/task-review">
+              <Link href="/hours-review">
                 <Button variant="outline">
-                  مراجعة المهام
+                  مراجعة الساعات
                 </Button>
               </Link>
             </div>

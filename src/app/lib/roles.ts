@@ -88,6 +88,7 @@ export const DISABLED_ROUTES: readonly string[] = [
   "/agreement",
   "/settings",
   "/hr",
+  "/task-review",
 ];
 
 /**
@@ -104,7 +105,6 @@ export const ROUTE_ACCESS_RULES: Record<string, UserRole[]> = {
   "/invitations": ["HR", "ADMIN", "SUPER_ADMIN"],
 
   // صفحات مراجعة الساعات والمهام
-  "/task-review": ["DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
   "/hours-review": ["DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
 
   // صفحات مشتركة أو مخصصة

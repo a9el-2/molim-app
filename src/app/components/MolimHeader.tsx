@@ -103,10 +103,6 @@ export default function MolimHeader() {
       href: "/add-task",
     },
     {
-      title: "مراجعة المهام",
-      href: "/task-review",
-    },
-    {
       title: "مراجعة الساعات",
       href: "/hours-review",
     },
@@ -141,10 +137,6 @@ export default function MolimHeader() {
     {
       title: "المتطوعون",
       href: "/volunteers",
-    },
-    {
-      title: "مراجعة المهام",
-      href: "/task-review",
     },
     {
       title: "الساعات",
