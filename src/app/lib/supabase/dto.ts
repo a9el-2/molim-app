@@ -13,6 +13,8 @@ export type UserDTO = {
   createdAt: string | null;
   updatedAt: string | null;
   profileCompleted: boolean;
+  skills?: string[];
+  tools?: string[];
 };
 
 const STATUS_TO_ARABIC: Record<string, string> = {

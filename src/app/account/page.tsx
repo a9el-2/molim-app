@@ -12,42 +12,6 @@ import { fetchUser, fetchMyHours, statusToArabic, formatJoinDate } from "../lib/
 import type { UserDTO } from "../lib/supabase/dto";
 import type { UserRole } from "../lib/roles";
 
-const skills = [
-  "القيادة",
-  "إدارة الفريق",
-  "التنظيم",
-  "التواصل",
-  "العمل الجماعي",
-  "إدارة الوقت",
-  "التخطيط",
-  "حل المشكلات",
-  "البحث",
-  "كتابة المحتوى",
-  "التصميم",
-  "التصوير",
-  "المونتاج",
-  "صناعة المحتوى",
-  "التسويق",
-  "العلاقات العامة",
-  "إدارة الحسابات",
-];
-
-const tools = [
-  "Canva",
-  "Photoshop",
-  "Premiere Pro",
-  "DaVinci Resolve",
-  "CapCut",
-  "Audacity",
-  "Figma",
-  "Microsoft Word",
-  "Microsoft Excel",
-  "PowerPoint",
-  "Notion",
-  "Telegram",
-  "ChatGPT",
-];
-
 export default function AccountPage() {
   const { user: currentUser, telegram } = useAuth();
 
@@ -108,6 +72,9 @@ export default function AccountPage() {
       ? currentUser.department
       : dbUser.department
     : currentUser.department;
+
+  const userSkills = Array.isArray(dbUser?.skills) ? dbUser.skills : [];
+  const userTools = Array.isArray(dbUser?.tools) ? dbUser.tools : [];
 
   return (
     <PageShell>
@@ -284,62 +251,54 @@ export default function AccountPage() {
         />
       </div>
 
-      {/* السيرة الذاتية */}
-      <SectionTitle
-        title="السيرة الذاتية"
-        description="الملف المرفوع في حسابك."
-      />
-
-      <Card className="mt-3 p-5">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-black">
-              السيرة الذاتية
-            </p>
-
-            <p className="mt-1 text-xs text-molim-muted">
-              لم يتم إرفاق ملف
-            </p>
-          </div>
-        </div>
-      </Card>
-
       {/* المهارات */}
       <SectionTitle
         title="مهاراتي"
-        description="المهارات التي أضفتها عند التسجيل."
+        description="المهارات المسجلة في حسابك."
       />
 
       <Card className="mt-3 p-5">
-        <div className="flex flex-wrap gap-2">
-          {skills.map((skill) => (
-            <span
-              key={skill}
-              className="border border-molim bg-molim-soft px-3 py-2 text-xs font-semibold"
-            >
-              {skill}
-            </span>
-          ))}
-        </div>
+        {userSkills.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {userSkills.map((skill) => (
+              <span
+                key={skill}
+                className="border border-molim bg-molim-soft px-3 py-2 text-xs font-semibold"
+              >
+                {skill}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-molim-muted">
+            لم يتم تحديد مهارات بعد.
+          </p>
+        )}
       </Card>
 
       {/* الأدوات والبرامج */}
       <SectionTitle
         title="الأدوات والبرامج"
-        description="البرامج والأدوات التي تجيد استخدامها."
+        description="البرامج والأدوات المسجلة في حسابك."
       />
 
       <Card className="mt-3 p-5">
-        <div className="flex flex-wrap gap-2">
-          {tools.map((tool) => (
-            <span
-              key={tool}
-              className="border border-molim bg-molim-soft px-3 py-2 text-xs font-semibold"
-            >
-              {tool}
-            </span>
-          ))}
-        </div>
+        {userTools.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {userTools.map((tool) => (
+              <span
+                key={tool}
+                className="border border-molim bg-molim-soft px-3 py-2 text-xs font-semibold"
+              >
+                {tool}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-molim-muted">
+            لم يتم تحديد أدوات بعد.
+          </p>
+        )}
       </Card>
 
       {/* ملخص الإنجاز */}

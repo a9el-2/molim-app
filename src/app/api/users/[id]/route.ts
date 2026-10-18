@@ -93,6 +93,8 @@ export async function GET(
       createdAt: typeof record.created_at === "string" ? record.created_at : null,
       updatedAt: typeof record.updated_at === "string" ? record.updated_at : null,
       profileCompleted: record.profile_completed !== false,
+      skills: Array.isArray(record.skills) ? record.skills : [],
+      tools: Array.isArray(record.tools) ? record.tools : [],
     },
   });
 }
