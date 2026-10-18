@@ -25,7 +25,7 @@ const ROLE_MESSAGES = {
 } as const;
 
 const ROLE_HOME: Record<UserRole, string> = {
-  VOLUNTEER: "/tasks",
+  VOLUNTEER: "/",
   DEPARTMENT_HEAD: "/",
   HR: "/",
   ADMIN: "/",
