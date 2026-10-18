@@ -8,7 +8,7 @@ import Button from "../components/Button";
 import PageTitle from "../components/PageTitle";
 import { useAuth } from "../lib/auth-context";
 import { ROLE_NAMES } from "../lib/roles";
-import { fetchUser, statusToArabic, formatJoinDate } from "../lib/supabase/dto";
+import { fetchUser, fetchMyHours, statusToArabic, formatJoinDate } from "../lib/supabase/dto";
 import type { UserDTO } from "../lib/supabase/dto";
 import type { UserRole } from "../lib/roles";
 
@@ -49,17 +49,52 @@ const tools = [
 ];
 
 export default function AccountPage() {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, telegram } = useAuth();
 
   const [dbUser, setDbUser] = useState<UserDTO | null>(null);
   const [showTelegram, setShowTelegram] = useState(false);
+  const [totalApprovedHours, setTotalApprovedHours] = useState(0);
+  const [tasksCount, setTasksCount] = useState(0);
 
   useEffect(() => {
-    fetchUser(currentUser.id).then((fetched) => {
-      if (fetched) {
-        setDbUser(fetched);
-      }
-    });
+    if (currentUser.id) {
+      fetchUser(currentUser.id).then((fetched) => {
+        if (fetched) {
+          setDbUser(fetched);
+        }
+      });
+    }
+
+    fetchMyHours()
+      .then((res) => {
+        if (res && res.hours) {
+          const total = res.hours
+            .filter((h) => h.status === "approved")
+            .reduce(
+              (sum, h) =>
+                sum +
+                (Number(h.approved_hours ?? h.submitted_hours) || 0),
+              0
+            );
+          setTotalApprovedHours(total);
+        }
+      })
+      .catch(() => {});
+
+    const initData =
+      typeof window !== "undefined"
+        ? window.Telegram?.WebApp?.initData
+        : "";
+    fetch("/api/tasks", {
+      headers: initData ? { "X-Telegram-Init-Data": initData } : {},
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.tasks && Array.isArray(data.tasks)) {
+          setTasksCount(data.tasks.length);
+        }
+      })
+      .catch(() => {});
   }, [currentUser.id]);
 
   const roleName =
@@ -123,7 +158,11 @@ export default function AccountPage() {
 
           <InfoBox
             label="تاريخ الانضمام"
-            value={dbUser ? formatJoinDate(dbUser.joinedAt ?? dbUser.createdAt) : "02 سبتمبر 2026"}
+            value={
+              dbUser?.joinedAt ?? dbUser?.createdAt
+                ? formatJoinDate(dbUser.joinedAt ?? dbUser.createdAt)
+                : "—"
+            }
           />
 
           <InfoBox
@@ -134,7 +173,7 @@ export default function AccountPage() {
 
           <InfoBox
             label="تاريخ الانتهاء"
-            value="02 ديسمبر 2026"
+            value="—"
           />
         </div>
 
@@ -155,27 +194,27 @@ export default function AccountPage() {
 
         <InfoBox
           label="البريد الإلكتروني"
-          value={dbUser?.email || "example@email.com"}
+          value={dbUser?.email || "غير مسجل"}
         />
 
         <InfoBox
           label="رقم الهاتف"
-          value={dbUser?.phone || "+966 5xxxxxxxx"}
+          value={dbUser?.phone || "غير مسجل"}
         />
 
         <InfoBox
           label="تاريخ الميلاد"
-          value="غير معروض"
+          value="غير مسجل"
         />
 
         <InfoBox
           label="الجنسية"
-          value="اليمن"
+          value="—"
         />
 
         <InfoBox
           label="بلد الإقامة"
-          value="السعودية"
+          value="—"
         />
       </div>
 
@@ -194,7 +233,9 @@ export default function AccountPage() {
 
             <p className="mt-1 text-sm font-black">
               {showTelegram
-                ? "@Molim_Aseel"
+                ? telegram?.user?.username
+                  ? `@${telegram.user.username}`
+                  : displayName
                 : "••••••••••"}
             </p>
           </div>
@@ -239,7 +280,7 @@ export default function AccountPage() {
 
         <InfoBox
           label="الساعات المعتمدة"
-          value="42 ساعة"
+          value={`${totalApprovedHours} ساعة`}
         />
       </div>
 
@@ -257,24 +298,10 @@ export default function AccountPage() {
             </p>
 
             <p className="mt-1 text-xs text-molim-muted">
-              CV_Aseel.pdf
+              لم يتم إرفاق ملف
             </p>
           </div>
-
-          <button
-            type="button"
-            className="text-xs font-bold text-molim-blue"
-          >
-            عرض
-          </button>
         </div>
-
-        <button
-          type="button"
-          className="molim-button-outline mt-4 w-full"
-        >
-          تحديث السيرة الذاتية
-        </button>
       </Card>
 
       {/* المهارات */}
@@ -324,17 +351,17 @@ export default function AccountPage() {
       <div className="mt-3 grid grid-cols-3 gap-3">
         <StatBox
           title="الساعات"
-          value="42"
+          value={String(totalApprovedHours)}
         />
 
         <StatBox
           title="المهام"
-          value="8"
+          value={String(tasksCount)}
         />
 
         <StatBox
           title="الشهادات"
-          value="1"
+          value="0"
         />
       </div>
 

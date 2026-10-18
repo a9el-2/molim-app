@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Card from "./components/Card";
 import Button from "./components/Button";
 import PageShell from "./components/PageShell";
 import PageTitle from "./components/PageTitle";
 import { useAuth } from "./lib/auth-context";
+import { fetchMyHours } from "./lib/supabase/dto";
 import type { UserRole } from "./lib/roles";
 
 const ROLE_MESSAGES = {
@@ -35,6 +36,50 @@ export default function Home() {
   const { user, role, roleName, status, isReady } = useAuth();
   const router = useRouter();
   const roleMessage = ROLE_MESSAGES[role] || ROLE_MESSAGES.VOLUNTEER;
+
+  const [approvedHours, setApprovedHours] = useState<number>(0);
+  const [tasksTotal, setTasksTotal] = useState<number>(0);
+  const [tasksPending, setTasksPending] = useState<number>(0);
+
+  useEffect(() => {
+    if (!isReady || status !== "authenticated") return;
+
+    fetchMyHours()
+      .then((res) => {
+        if (res && res.hours) {
+          const total = res.hours
+            .filter((h) => h.status === "approved")
+            .reduce(
+              (sum, h) =>
+                sum +
+                (Number(h.approved_hours ?? h.submitted_hours) || 0),
+              0
+            );
+          setApprovedHours(total);
+        }
+      })
+      .catch(() => {});
+
+    const initData =
+      typeof window !== "undefined"
+        ? window.Telegram?.WebApp?.initData
+        : "";
+    fetch("/api/tasks", {
+      headers: initData ? { "X-Telegram-Init-Data": initData } : {},
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.tasks && Array.isArray(data.tasks)) {
+          setTasksTotal(data.tasks.length);
+          const pending = data.tasks.filter(
+            (t: { status: string }) =>
+              t.status === "in_progress" || t.status === "review"
+          ).length;
+          setTasksPending(pending);
+        }
+      })
+      .catch(() => {});
+  }, [isReady, status]);
 
   useEffect(() => {
     if (!isReady) return;
@@ -136,7 +181,7 @@ export default function Home() {
               </p>
 
               <p className="mt-2 text-3xl font-black">
-                8
+                {tasksTotal}
               </p>
 
               <p className="mt-2 text-xs leading-5 text-molim-muted">
@@ -166,7 +211,7 @@ export default function Home() {
               </p>
 
               <p className="mt-2 text-3xl font-black">
-                42
+                {approvedHours}
               </p>
 
               <p className="mt-2 text-xs leading-5 text-molim-muted">
@@ -199,12 +244,12 @@ export default function Home() {
               </p>
 
               <h2 className="mt-1 text-lg font-black">
-                تحتاج متابعة
+                {tasksPending > 0 ? "تحتاج متابعة" : "لا توجد مهام معلقة"}
               </h2>
             </div>
 
             <span className="border border-molim-orange bg-molim-soft px-3 py-1 text-xs font-bold text-molim-orange">
-              2 مهام
+              {tasksPending} مهام
             </span>
           </div>
 
