@@ -72,6 +72,25 @@ export async function POST(
     );
   }
 
+  // التحقق من أحقية تسليم المهمة: المهام الشخصية أو الموجهة لشخص محدد لا يمكن تسليمها إلا من قبله
+  if (
+    task.target_type === "self" &&
+    task.created_by !== currentUser.id &&
+    task.target_user_id !== currentUser.id
+  ) {
+    return NextResponse.json(
+      { error: "هذه المهمة شخصية وخاصة بعضو آخر ولا يمكنك تسليمها." },
+      { status: 403 }
+    );
+  }
+
+  if (task.target_user_id && task.target_user_id !== currentUser.id) {
+    return NextResponse.json(
+      { error: "هذه المهمة مخصصة لعضو آخر ولا يمكنك تسليمها." },
+      { status: 403 }
+    );
+  }
+
   // 3. قراءة جسم الطلب
   let body: Record<string, unknown> = {};
   try {

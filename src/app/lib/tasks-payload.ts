@@ -283,7 +283,16 @@ export function canViewTask(params: {
 }): boolean {
   const { userRole, userId, userDepartmentId, task } = params;
 
-  // الإدارة والموارد البشرية والرئيس العام يرون كل المهام
+  // المهام الشخصية (target_type = self) محصورة بصاحبها فقط ولا تظهر لأي مستخدم آخر حتى لو كان إدارياً
+  if (task.target_type === "self") {
+    return (
+      task.created_by === userId ||
+      task.target_user_id === userId ||
+      task.assigned_to === userId
+    );
+  }
+
+  // الإدارة والموارد البشرية والرئيس العام يرون كل المهام غير الشخصية (مهام الأقسام والعامة)
   if (
     userRole === "HR" ||
     userRole === "ADMIN" ||

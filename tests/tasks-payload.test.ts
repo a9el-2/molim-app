@@ -229,6 +229,43 @@ test("صلاحية الرؤية (canViewTask): الأدوار العليا (HR, 
   }
 });
 
+test("صلاحية الرؤية (canViewTask): المهام الشخصية (target_type = self) محصورة بصاحبها ولا يراها الإداريون الآخرون", () => {
+  const roles: UserRole[] = ["HR", "ADMIN", "SUPER_ADMIN", "DEPARTMENT_HEAD", "VOLUNTEER"];
+  const personalTask = {
+    id: "task-personal-1",
+    created_by: "user-alpha",
+    target_user_id: "user-alpha",
+    department_id: null,
+    target_department_ids: [],
+    target_type: "self",
+  };
+
+  // المنشئ يراها
+  assert.equal(
+    canViewTask({
+      userRole: "SUPER_ADMIN",
+      userId: "user-alpha",
+      userDepartmentId: "dept-general",
+      task: personalTask,
+    }),
+    true
+  );
+
+  // أي شخص آخر (حتى لو كان SUPER_ADMIN أو HR أو ADMIN) لا يراها
+  for (const role of roles) {
+    assert.equal(
+      canViewTask({
+        userRole: role,
+        userId: "user-beta",
+        userDepartmentId: "dept-general",
+        task: personalTask,
+      }),
+      false,
+      `المهمة الشخصية يجب ألا يراها مستخدم آخر بدور ${role}`
+    );
+  }
+});
+
 test("صلاحية الرؤية (canViewTask): المتطوع يرى فقط مهامه ومهام قسمه وما أنشأه وما هو عام", () => {
   const volunteerId = "vol-1";
   const volunteerDept = "dept-tech";

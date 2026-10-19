@@ -115,6 +115,7 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState<TaskStatusFilter>("الكل");
+  const [scopeFilter, setScopeFilter] = useState<"my_tasks" | "all_tasks">("my_tasks");
 
   // تسليم المهمة
   const [submittingTask, setSubmittingTask] = useState<TaskItem | null>(null);
@@ -126,6 +127,26 @@ export default function TasksPage() {
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
   const isManager = role === "DEPARTMENT_HEAD" || role === "HR" || role === "ADMIN" || role === "SUPER_ADMIN";
+
+  const isPersonalTask = useCallback(
+    (task: TaskItem) => {
+      return (
+        task.target_user_id === user.id ||
+        task.assigned_to === user.id ||
+        (task.target_type === "self" && task.created_by === user.id) ||
+        (!task.target_user_id && !task.assigned_to && task.created_by === user.id)
+      );
+    },
+    [user.id]
+  );
+
+  const myTasksCount = useMemo(() => {
+    return tasks.filter(isPersonalTask).length;
+  }, [tasks, isPersonalTask]);
+
+  const teamTasksCount = useMemo(() => {
+    return tasks.length;
+  }, [tasks]);
 
   const loadTasks = useCallback(async () => {
     setLoading(true);
@@ -160,9 +181,13 @@ export default function TasksPage() {
   }, [isReady, loadTasks]);
 
   const filteredTasks = useMemo(() => {
-    if (activeStatus === "الكل") return tasks;
-    return tasks.filter((task) => getArabicStatus(task.status) === activeStatus);
-  }, [tasks, activeStatus]);
+    let list = tasks;
+    if (scopeFilter === "my_tasks") {
+      list = list.filter(isPersonalTask);
+    }
+    if (activeStatus === "الكل") return list;
+    return list.filter((task) => getArabicStatus(task.status) === activeStatus);
+  }, [tasks, scopeFilter, activeStatus, isPersonalTask]);
 
   function openSubmitModal(task: TaskItem) {
     setSubmittingTask(task);
@@ -281,6 +306,34 @@ export default function TasksPage() {
             </div>
           </div>
 
+          {/* تبويب النطاق: مهامي الخاصة مقابل مهام الفريق */}
+          <div className="flex border-b border-molim gap-2">
+            <button
+              type="button"
+              onClick={() => setScopeFilter("my_tasks")}
+              className={`pb-2.5 px-3 text-xs font-bold transition border-b-2 ${
+                scopeFilter === "my_tasks"
+                  ? "border-molim-orange text-molim-orange"
+                  : "border-transparent text-molim-muted hover:text-molim-foreground"
+              }`}
+            >
+              👤 مهامي الخاصة ({myTasksCount})
+            </button>
+            {isManager && (
+              <button
+                type="button"
+                onClick={() => setScopeFilter("all_tasks")}
+                className={`pb-2.5 px-3 text-xs font-bold transition border-b-2 ${
+                  scopeFilter === "all_tasks"
+                    ? "border-molim-orange text-molim-orange"
+                    : "border-transparent text-molim-muted hover:text-molim-foreground"
+                }`}
+              >
+                👥 مهام الفريق والأقسام ({teamTasksCount})
+              </button>
+            )}
+          </div>
+
           {/* فلاتر الحالة */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1">
             <span className="text-xs font-bold text-molim-muted shrink-0 ml-1">تصفية حسب:</span>
@@ -344,7 +397,9 @@ export default function TasksPage() {
               </h3>
               <p className="mt-1 text-sm text-molim-muted">
                 {activeStatus === "الكل"
-                  ? "لم يتم العثور على أي مهام مسندة إليك أو لقسمك حالياً."
+                  ? scopeFilter === "my_tasks"
+                    ? "لا توجد لديك مهام خاصة مسندة إليك حالياً."
+                    : "لم يتم العثور على أي مهام مسندة لقسمك أو الفريق حالياً."
                   : `لا توجد مهام بحالة «${activeStatus}».`}
               </p>
               <div className="mt-5">
@@ -437,18 +492,19 @@ export default function TasksPage() {
                         </div>
 
                         {/* زر تسليم المهمة */}
-                        {task.status === "in_progress" && (
-                          <div className="mt-2 flex items-center justify-end border-t border-molim pt-3">
-                            <Button
-                              type="button"
-                              variant="primary"
-                              onClick={() => openSubmitModal(task)}
-                              className="text-xs bg-green-600 hover:bg-green-700 text-white"
-                            >
-                              🚀 تسليم المهمة وطلب اعتماد الساعات
-                            </Button>
-                          </div>
-                        )}
+                        {task.status === "in_progress" &&
+                          (isPersonalTask(task) || !task.target_user_id) && (
+                            <div className="mt-2 flex items-center justify-end border-t border-molim pt-3">
+                              <Button
+                                type="button"
+                                variant="primary"
+                                onClick={() => openSubmitModal(task)}
+                                className="text-xs bg-green-600 hover:bg-green-700 text-white"
+                              >
+                                🚀 تسليم المهمة وطلب اعتماد الساعات
+                              </Button>
+                            </div>
+                          )}
 
                         {task.status === "in_review" && (
                           <div className="mt-2 rounded bg-blue-50 border border-blue-200 p-2.5 text-xs text-blue-700 flex items-center justify-between">

@@ -70,16 +70,29 @@ export default function Home() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.tasks && Array.isArray(data.tasks)) {
-          setTasksTotal(data.tasks.length);
-          const pending = data.tasks.filter(
+          // حساب المهام الخاصة بهذا العضو فقط (مهامي)
+          const myTasks = data.tasks.filter(
+            (t: {
+              target_user_id?: string | null;
+              assigned_to?: string | null;
+              target_type?: string | null;
+              created_by?: string;
+            }) =>
+              t.target_user_id === user.id ||
+              t.assigned_to === user.id ||
+              (t.target_type === "self" && t.created_by === user.id) ||
+              (!t.target_user_id && !t.assigned_to && t.created_by === user.id)
+          );
+          setTasksTotal(myTasks.length);
+          const pending = myTasks.filter(
             (t: { status: string }) =>
-              t.status === "in_progress" || t.status === "review"
+              t.status === "in_progress" || t.status === "in_review"
           ).length;
           setTasksPending(pending);
         }
       })
       .catch(() => {});
-  }, [isReady, status]);
+  }, [isReady, status, user?.id]);
 
   useEffect(() => {
     if (!isReady) return;
