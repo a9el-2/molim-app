@@ -24,6 +24,8 @@ export type TaskItem = {
   creator_name: string;
   creator_number: string;
   assigned_to: string | null;
+  review_decision?: string | null;
+  review_reason?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -107,12 +109,23 @@ function getArabicScope(task: TaskItem): string {
 }
 
 export default function TasksPage() {
-  const { isReady } = useAuth();
+  const { user, role, isReady } = useAuth();
 
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState<TaskStatusFilter>("الكل");
+
+  // تسليم المهمة
+  const [submittingTask, setSubmittingTask] = useState<TaskItem | null>(null);
+  const [submitHours, setSubmitHours] = useState("");
+  const [submitNotes, setSubmitNotes] = useState("");
+  const [submitLinks, setSubmitLinks] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
+
+  const isManager = role === "DEPARTMENT_HEAD" || role === "HR" || role === "ADMIN" || role === "SUPER_ADMIN";
 
   const loadTasks = useCallback(async () => {
     setLoading(true);
@@ -151,10 +164,85 @@ export default function TasksPage() {
     return tasks.filter((task) => getArabicStatus(task.status) === activeStatus);
   }, [tasks, activeStatus]);
 
+  function openSubmitModal(task: TaskItem) {
+    setSubmittingTask(task);
+    setSubmitHours(task.requested_hours ? String(task.requested_hours) : "1");
+    setSubmitNotes("");
+    setSubmitLinks("");
+    setSubmitError(null);
+  }
+
+  function closeSubmitModal() {
+    setSubmittingTask(null);
+    setSubmitError(null);
+  }
+
+  async function handleSubmitCompletion(e: React.FormEvent) {
+    e.preventDefault();
+    if (!submittingTask) return;
+    setSubmitError(null);
+
+    const hoursNum = Number(submitHours);
+    if (
+      Number.isNaN(hoursNum) ||
+      hoursNum < 0.25 ||
+      hoursNum > 24 ||
+      Math.abs(hoursNum * 4 - Math.round(hoursNum * 4)) > 1e-6
+    ) {
+      setSubmitError("الساعات المستغرقة يجب أن تكون بين 0.25 و 24 وبخطوات 0.25.");
+      return;
+    }
+
+    const trimmedNotes = submitNotes.trim();
+    if (!trimmedNotes) {
+      setSubmitError("يرجى كتابة وصف موجز لما قمت بإنجازه.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    const response = await fetch(`/api/tasks/${encodeURIComponent(String(submittingTask.id))}/submit`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({
+        hours: hoursNum,
+        notes: trimmedNotes,
+        links: submitLinks.trim() || undefined,
+      }),
+    }).catch(() => null);
+
+    if (!response) {
+      setSubmitError("تعذر الاتصال بالخادم.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const data = await parseJson<{ ok?: boolean; message?: string; error?: string }>(response);
+
+    if (!response.ok || !data?.ok) {
+      setSubmitError(data?.error ?? "حدث خطأ أثناء تسليم المهمة.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    setIsSubmitting(false);
+    closeSubmitModal();
+    setSuccessToast("تم تسليم المهمة بنجاح وتحويلها لمراجعة المسؤولين! 🚀");
+    setTimeout(() => setSuccessToast(null), 5000);
+    await loadTasks();
+  }
+
   return (
     <RoleGuard allowedRoles={["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"]}>
       <PageShell>
         <div className="space-y-6">
+          {/* نجاح الإرسال */}
+          {successToast && (
+            <div className="rounded border border-green-200 bg-green-50 p-4 text-xs font-bold text-green-800">
+              {successToast}
+            </div>
+          )}
+
           {/* ترويسة الصفحة */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -163,11 +251,11 @@ export default function TasksPage() {
                 المهام
               </h1>
               <p className="mt-1 text-sm text-molim-muted">
-                استعراض ومتابعة المهام المسندة والمهام الخاصة بالقسم.
+                استعراض المهام وإنجازها ورفع المخرجات لاعتماد الساعات التطوعية.
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 onClick={loadTasks}
@@ -176,6 +264,14 @@ export default function TasksPage() {
               >
                 {loading ? "جاري التحديث..." : "تحديث 🔄"}
               </Button>
+
+              {isManager && (
+                <Link href="/task-review">
+                  <Button variant="secondary" className="text-xs bg-molim-orange/15 text-molim-orange border-molim-orange/30 hover:bg-molim-orange/25">
+                    📋 مراجعة المهام
+                  </Button>
+                </Link>
+              )}
 
               <Link href="/add-task">
                 <Button variant="primary" className="text-xs">
@@ -273,6 +369,7 @@ export default function TasksPage() {
                   const arabicStatus = getArabicStatus(task.status);
                   const statusStyle = getStatusStyle(task.status);
                   const arabicScope = getArabicScope(task);
+                  const isOwner = task.created_by === user.id || task.assigned_to === user.id;
 
                   return (
                     <Card key={task.id} className="p-5">
@@ -297,6 +394,14 @@ export default function TasksPage() {
                           </span>
                         </div>
 
+                        {/* تنبيه إذا كانت المهمة مرفوضة أو بها ملاحظات مراجعة */}
+                        {task.review_decision === "rejected" && task.review_reason && (
+                          <div className="rounded border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+                            <span className="font-bold block mb-0.5">⚠️ ملاحظات المراجع للتعديل:</span>
+                            {task.review_reason}
+                          </div>
+                        )}
+
                         {/* معلومات المهمة: المنشئ، النطاق، الساعات، الاستحقاق */}
                         <div className="mt-3 grid grid-cols-2 gap-2 border-t border-molim pt-3 text-xs sm:grid-cols-4">
                           <div className="rounded bg-molim-soft p-2.5">
@@ -317,7 +422,7 @@ export default function TasksPage() {
                           </div>
 
                           <div className="rounded bg-molim-soft p-2.5">
-                            <span className="block text-[11px] text-molim-muted">الساعات المطلوبة:</span>
+                            <span className="block text-[11px] text-molim-muted">الساعات التقديرية:</span>
                             <span className="font-bold text-molim-foreground block mt-0.5">
                               {task.requested_hours !== null ? `${task.requested_hours} ساعة` : "غير محدد"}
                             </span>
@@ -330,6 +435,31 @@ export default function TasksPage() {
                             </span>
                           </div>
                         </div>
+
+                        {/* زر تسليم المهمة */}
+                        {task.status === "in_progress" && (
+                          <div className="mt-2 flex items-center justify-end border-t border-molim pt-3">
+                            <Button
+                              type="button"
+                              variant="primary"
+                              onClick={() => openSubmitModal(task)}
+                              className="text-xs bg-green-600 hover:bg-green-700 text-white"
+                            >
+                              🚀 تسليم المهمة وطلب اعتماد الساعات
+                            </Button>
+                          </div>
+                        )}
+
+                        {task.status === "in_review" && (
+                          <div className="mt-2 rounded bg-blue-50 border border-blue-200 p-2.5 text-xs text-blue-700 flex items-center justify-between">
+                            <span>⏳ تم تسليم المهمة وهي قيد المراجعة حالياً من قبل الإدارة.</span>
+                            {isManager && (
+                              <Link href="/task-review" className="font-bold underline mr-2">
+                                الانتقال لمراجعتها ←
+                              </Link>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </Card>
                   );
@@ -338,6 +468,113 @@ export default function TasksPage() {
             </div>
           )}
         </div>
+
+        {/* نافذة تسليم المهمة */}
+        {submittingTask && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget && !isSubmitting) {
+                closeSubmitModal();
+              }
+            }}
+          >
+            <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-molim-surface p-6 shadow-2xl border border-molim">
+              <div className="flex items-start justify-between gap-3 border-b border-molim pb-4">
+                <div>
+                  <span className="text-xs font-bold text-molim-orange">تسليم إنجاز</span>
+                  <h2 className="mt-1 text-lg font-black text-molim-foreground">
+                    {submittingTask.title}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={closeSubmitModal}
+                  className="rounded-xl bg-molim-soft px-3 py-1.5 text-xs font-bold text-molim-muted hover:text-molim-foreground"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitCompletion} className="mt-5 space-y-4">
+                {submitError && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-700">
+                    ⚠️ {submitError}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-molim-foreground mb-1">
+                    عدد الساعات المستغرقة الفعلية (خطوات 0.25)
+                  </label>
+                  <input
+                    type="number"
+                    min="0.25"
+                    max="24"
+                    step="0.25"
+                    required
+                    disabled={isSubmitting}
+                    value={submitHours}
+                    onChange={(e) => setSubmitHours(e.target.value)}
+                    placeholder="مثال: 3"
+                    className="w-full rounded border border-molim bg-molim-soft px-3 py-2 text-sm text-molim-foreground focus:outline-none focus:border-molim-orange"
+                  />
+                  <p className="mt-1 text-[11px] text-molim-muted">
+                    ستُحتسب هذه الساعات رسمياً في رصيدك التطوعي بعد مراجعتها واعتمادها.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-molim-foreground mb-1">
+                    وصف ما تم إنجازه <span className="text-red-500">* (إجباري)</span>
+                  </label>
+                  <textarea
+                    rows={4}
+                    required
+                    disabled={isSubmitting}
+                    value={submitNotes}
+                    onChange={(e) => setSubmitNotes(e.target.value)}
+                    placeholder="اكتب تفاصيل ما قمت بعمله لإنجاز هذه المهمة..."
+                    className="w-full rounded border border-molim bg-molim-soft p-3 text-sm text-molim-foreground focus:outline-none focus:border-molim-orange"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-molim-foreground mb-1">
+                    روابط المخرجات أو المرفقات (اختياري)
+                  </label>
+                  <input
+                    type="text"
+                    disabled={isSubmitting}
+                    value={submitLinks}
+                    onChange={(e) => setSubmitLinks(e.target.value)}
+                    placeholder="رابط Google Drive، Figma، GitHub، أو أي رابط خارجي..."
+                    className="w-full rounded border border-molim bg-molim-soft px-3 py-2 text-sm text-molim-foreground focus:outline-none focus:border-molim-orange"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 text-xs bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {isSubmitting ? "جاري التسليم..." : "إرسال المهمة للمراجعة ✅"}
+                  </Button>
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={closeSubmitModal}
+                    className="rounded border border-molim px-4 py-2 text-xs font-semibold text-molim-muted hover:bg-molim-soft"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </PageShell>
     </RoleGuard>
   );

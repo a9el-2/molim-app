@@ -103,6 +103,9 @@ export default function SettingsPage() {
   const [certificate40Hours, setCertificate40Hours] =
     useState(true);
 
+  const [certificateParticipationTask, setCertificateParticipationTask] =
+    useState(true);
+
   const [experience300Hours, setExperience300Hours] =
     useState(true);
 
@@ -437,6 +440,13 @@ export default function SettingsPage() {
                     description="إتاحة الاستحقاق بعد الوصول إلى 40 ساعة معتمدة."
                     checked={certificate40Hours}
                     onChange={setCertificate40Hours}
+                  />
+
+                  <ToggleRow
+                    title="شهادة المشاركة بعد إكمال مهمة واحدة"
+                    description="إتاحة الاستحقاق بعد إنجاز مهمة واحدة على الأقل بنجاح."
+                    checked={certificateParticipationTask}
+                    onChange={setCertificateParticipationTask}
                   />
 
                   <ToggleRow

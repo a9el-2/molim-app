@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Button from "../components/Button";
 import Card from "../components/Card";
 import PageShell from "../components/PageShell";
@@ -9,30 +9,25 @@ import RoleGuard from "../components/RoleGuard";
 import { useAuth } from "../lib/auth-context";
 import { ROLE_NAMES } from "../lib/roles";
 
-type AttachmentKind = "صورة" | "مستند" | "رابط";
-
-type Attachment = {
-  id: number;
-  name: string;
-  kind: AttachmentKind;
-  size: string;
-  preview: string;
-  url: string;
-};
-
-type PendingTask = {
-  id: number;
+export type PendingReviewTask = {
+  id: string | number;
   title: string;
-  volunteer: string;
-  department: string;
-  hours: number;
-  completedAt: string;
-  description: string;
-  attachments: Attachment[];
+  description: string | null;
+  department_id: string | null;
+  department_name: string;
+  volunteer_id: string;
+  volunteer_name: string;
+  volunteer_number: string;
+  submitted_hours: number;
+  submission_notes: string;
+  submission_date: string;
+  hours_log_id: string | number | null;
+  created_at: string;
+  updated_at: string;
 };
 
-type ReviewedTask = {
-  id: number;
+type ReviewedTaskLog = {
+  id: string | number;
   title: string;
   volunteer: string;
   hours: number;
@@ -40,174 +35,168 @@ type ReviewedTask = {
   reason: string;
 };
 
-/* صورة معاينة تجريبية لقسم المرفقات (SVG بهوية مُلم) */
-const SAMPLE_IMAGE =
-  "data:image/svg+xml," +
-  encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="420" viewBox="0 0 800 420" dir="rtl"><rect width="800" height="420" fill="#0f1f3d"/><rect x="40" y="40" width="140" height="140" fill="#ff4500"/><text x="110" y="150" font-family="Arial" font-size="80" font-weight="bold" fill="#ffffff" text-anchor="middle">م</text><text x="745" y="115" font-family="Arial" font-size="46" font-weight="bold" fill="#ff4500" text-anchor="end">مرفق العمل</text><text x="745" y="175" font-family="Arial" font-size="26" fill="#ffffff" text-anchor="end">مُلم — نموذج الإنجاز والمرفقات</text></svg>`
-  );
+function telegramInitData(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.Telegram?.WebApp?.initData || null;
+}
 
-const DRIVE_ROOT =
-  "https://drive.google.com/drive/my-drive";
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  const initData = telegramInitData();
+  return {
+    ...(initData ? { "X-Telegram-Init-Data": initData } : {}),
+    ...(extra ?? {}),
+  };
+}
 
-const initialPendingTasks: PendingTask[] = [
-  {
-    id: 1,
-    title: "تصميم منشور إعلان المنح",
-    volunteer: "أحمد محمد",
-    department: "التصميم",
-    hours: 3,
-    completedAt: "2026/09/04",
-    description:
-      "أنجزت تصميم منشور إعلان المنح الجديد بقياس 1080×1080 بعدة نسخ ألوان، مع مراعاة هوية منصة مُلم وضبط النصوص العربية وتصدير الملفات النهائية بصيغتي PNG و SVG.",
-    attachments: [
-      {
-        id: 101,
-        name: "منشور-المنح-final.png",
-        kind: "صورة",
-        size: "1.8 MB",
-        preview: SAMPLE_IMAGE,
-        url: "",
-      },
-      {
-        id: 102,
-        name: "مسودة التصميم على Drive",
-        kind: "رابط",
-        size: "رابط خارجي",
-        preview: "",
-        url: DRIVE_ROOT,
-      },
-    ],
-  },
-  {
-    id: 2,
-    title: "كتابة محتوى فرص التطوع",
-    volunteer: "سارة علي",
-    department: "المحتوى",
-    hours: 4,
-    completedAt: "2026/09/05",
-    description:
-      "كتبت مقالًا تعريفيًا عن فرص التطوع في مُلم مع مراجعة لغوية كاملة وتنسيق الأقسام، وأعددت مسودة النشرة الإخبارية الشهرية مع حصر العناوين والروابط المرجعية.",
-    attachments: [
-      {
-        id: 201,
-        name: "مسودة-المقال.docx",
-        kind: "مستند",
-        size: "340 KB",
-        preview: "",
-        url: "",
-      },
-      {
-        id: 202,
-        name: "مجلد مسودات الكتابة",
-        kind: "رابط",
-        size: "رابط خارجي",
-        preview: "",
-        url: DRIVE_ROOT,
-      },
-    ],
-  },
-  {
-    id: 3,
-    title: "تحديث صفحة المنصة",
-    volunteer: "محمد خالد",
-    department: "التقنية",
-    hours: 2,
-    completedAt: "2026/09/05",
-    description:
-      "حدّثت محتوى صفحة المنصة وأصلحت الروابط المكسورة في الصفحة الرئيسية، وتأكدت من استجابة العرض على شاشات الجوال مع فحص سريع للأداء.",
-    attachments: [
-      {
-        id: 301,
-        name: "لقطة-الشاشة.JPG",
-        kind: "صورة",
-        size: "920 KB",
-        preview: SAMPLE_IMAGE,
-        url: "",
-      },
-    ],
-  },
-];
-
-const attachmentIcons: Record<AttachmentKind, string> = {
-  صورة: "🖼️",
-  مستند: "📄",
-  رابط: "🔗",
-};
+async function parseJson<T>(response: Response): Promise<T | null> {
+  try {
+    return (await response.json()) as T;
+  } catch {
+    return null;
+  }
+}
 
 export default function TaskReviewPage() {
-  const { user: currentUser } = useAuth();
-
+  const { user: currentUser, isReady } = useAuth();
   const roleName = ROLE_NAMES[currentUser.role];
 
-  const [tasks, setTasks] =
-    useState<PendingTask[]>(initialPendingTasks);
+  const [tasks, setTasks] = useState<PendingReviewTask[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const [hoursInput, setHoursInput] =
-    useState<Record<number, string>>({});
-
-  const [completedReviews, setCompletedReviews] =
-    useState<ReviewedTask[]>([]);
-
-  const [previewAttachment, setPreviewAttachment] =
-    useState<Attachment | null>(null);
-
-  const [rejectingId, setRejectingId] =
-    useState<number | null>(null);
-
+  const [hoursInput, setHoursInput] = useState<Record<string | number, string>>({});
+  const [rejectingId, setRejectingId] = useState<string | number | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [submittingMap, setSubmittingMap] = useState<Record<string | number, boolean>>({});
+  const [actionErrorMap, setActionErrorMap] = useState<Record<string | number, string | null>>({});
 
-  function getHoursValue(task: PendingTask) {
-    return hoursInput[task.id] ?? String(task.hours);
+  const [completedReviews, setCompletedReviews] = useState<ReviewedTaskLog[]>([]);
+
+  const loadPendingTasks = useCallback(async () => {
+    setLoading(true);
+    setFetchError(null);
+
+    const response = await fetch("/api/tasks/review", {
+      headers: authHeaders(),
+    }).catch(() => null);
+
+    if (!response) {
+      setFetchError("تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت.");
+      setLoading(false);
+      return;
+    }
+
+    const data = await parseJson<{
+      ok?: boolean;
+      tasks?: PendingReviewTask[];
+      error?: string;
+    }>(response);
+
+    if (!response.ok || !data?.ok) {
+      setFetchError(data?.error ?? "تعذر جلب مهام المراجعة.");
+      setLoading(false);
+      return;
+    }
+
+    const list = data.tasks ?? [];
+    setTasks(list);
+
+    const initialHours: Record<string | number, string> = {};
+    for (const task of list) {
+      initialHours[task.id] = String(task.submitted_hours);
+    }
+    setHoursInput((prev) => ({ ...initialHours, ...prev }));
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (isReady) {
+      loadPendingTasks();
+    }
+  }, [isReady, loadPendingTasks]);
+
+  function getHoursValue(task: PendingReviewTask) {
+    return hoursInput[task.id] ?? String(task.submitted_hours);
   }
 
-  function setHours(taskId: number, value: string) {
+  function setHours(taskId: string | number, value: string) {
     setHoursInput((current) => ({
       ...current,
       [taskId]: value,
     }));
+    setActionErrorMap((prev) => ({ ...prev, [taskId]: null }));
   }
 
-  function removeTask(taskId: number) {
-    setTasks((current) =>
-      current.filter((item) => item.id !== taskId)
-    );
+  async function approveTask(task: PendingReviewTask) {
+    const rawVal = getHoursValue(task);
+    const entered = Number(rawVal);
 
-    setHoursInput((current) => {
-      const next = { ...current };
-      delete next[taskId];
-      return next;
-    });
+    if (
+      Number.isNaN(entered) ||
+      entered < 0.25 ||
+      entered > 24 ||
+      Math.abs(entered * 4 - Math.round(entered * 4)) > 1e-6
+    ) {
+      setActionErrorMap((prev) => ({
+        ...prev,
+        [task.id]: "الساعات المعتمدة يجب أن تكون بين 0.25 و 24 وبخطوات 0.25.",
+      }));
+      return;
+    }
 
-    cancelReject();
-  }
+    setSubmittingMap((prev) => ({ ...prev, [task.id]: true }));
+    setActionErrorMap((prev) => ({ ...prev, [task.id]: null }));
 
-  function approveTask(task: PendingTask) {
-    const entered = Number(getHoursValue(task));
+    const response = await fetch(`/api/tasks/${encodeURIComponent(String(task.id))}/review`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({
+        action: "approve",
+        approvedHours: entered,
+        note: entered !== task.submitted_hours ? `تعديل الساعات إلى ${entered} ساعة` : undefined,
+      }),
+    }).catch(() => null);
 
-    const approvedHours =
-      Number.isFinite(entered) && entered >= 0
-        ? Math.round(entered)
-        : 0;
+    if (!response) {
+      setActionErrorMap((prev) => ({
+        ...prev,
+        [task.id]: "تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت.",
+      }));
+      setSubmittingMap((prev) => ({ ...prev, [task.id]: false }));
+      return;
+    }
+
+    const data = await parseJson<{ ok?: boolean; error?: string; message?: string }>(response);
+
+    if (!response.ok || !data?.ok) {
+      setActionErrorMap((prev) => ({
+        ...prev,
+        [task.id]: data?.error ?? data?.message ?? "حدث خطأ أثناء اعتماد المهمة.",
+      }));
+      setSubmittingMap((prev) => ({ ...prev, [task.id]: false }));
+      return;
+    }
 
     setCompletedReviews((current) => [
       {
-        id: Date.now(),
+        id: task.id,
         title: task.title,
-        volunteer: task.volunteer,
-        hours: approvedHours,
+        volunteer: task.volunteer_name,
+        hours: entered,
         decision: "معتمدة",
         reason: "",
       },
       ...current,
     ]);
 
-    removeTask(task.id);
+    setTasks((current) => current.filter((item) => item.id !== task.id));
+    setSubmittingMap((prev) => ({ ...prev, [task.id]: false }));
   }
 
-  function requestReject(task: PendingTask) {
+  function requestReject(task: PendingReviewTask) {
     setRejectingId(task.id);
     setRejectReason("");
+    setActionErrorMap((prev) => ({ ...prev, [task.id]: null }));
   }
 
   function cancelReject() {
@@ -215,421 +204,337 @@ export default function TaskReviewPage() {
     setRejectReason("");
   }
 
-  function confirmReject(task: PendingTask) {
+  async function confirmReject(task: PendingReviewTask) {
+    const trimmedReason = rejectReason.trim();
+    if (!trimmedReason) {
+      setActionErrorMap((prev) => ({
+        ...prev,
+        [task.id]: "يرجى كتابة سبب الرفض أو الملاحظات ليعود للمتطوع.",
+      }));
+      return;
+    }
+
+    setSubmittingMap((prev) => ({ ...prev, [task.id]: true }));
+    setActionErrorMap((prev) => ({ ...prev, [task.id]: null }));
+
+    const response = await fetch(`/api/tasks/${encodeURIComponent(String(task.id))}/review`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({
+        action: "reject",
+        reason: trimmedReason,
+      }),
+    }).catch(() => null);
+
+    if (!response) {
+      setActionErrorMap((prev) => ({
+        ...prev,
+        [task.id]: "تعذر الاتصال بالخادم.",
+      }));
+      setSubmittingMap((prev) => ({ ...prev, [task.id]: false }));
+      return;
+    }
+
+    const data = await parseJson<{ ok?: boolean; error?: string; message?: string }>(response);
+
+    if (!response.ok || !data?.ok) {
+      setActionErrorMap((prev) => ({
+        ...prev,
+        [task.id]: data?.error ?? data?.message ?? "تعذر رفض المهمة.",
+      }));
+      setSubmittingMap((prev) => ({ ...prev, [task.id]: false }));
+      return;
+    }
+
     setCompletedReviews((current) => [
       {
-        id: Date.now(),
+        id: task.id,
         title: task.title,
-        volunteer: task.volunteer,
-        hours: task.hours,
+        volunteer: task.volunteer_name,
+        hours: task.submitted_hours,
         decision: "مرفوضة",
-        reason: rejectReason.trim(),
+        reason: trimmedReason,
       },
       ...current,
     ]);
 
-    removeTask(task.id);
+    setTasks((current) => current.filter((item) => item.id !== task.id));
+    setSubmittingMap((prev) => ({ ...prev, [task.id]: false }));
+    cancelReject();
   }
 
   return (
-    <RoleGuard allowedRoles={["DEPARTMENT_HEAD", "ADMIN", "SUPER_ADMIN"]}>
-      <PageShell narrow>
-        {/* الهيدر */}
-        <header className="mb-6 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-bold text-molim-orange">
-              {roleName}
-            </p>
-
-            <h1 className="mt-1 text-2xl font-black text-[var(--foreground)]">
-              مراجعة المهام
-            </h1>
-
-            <p className="mt-2 text-sm leading-6 text-molim-muted">
-              مراجعة تفاصيل المهام ومرفقاتها واعتماد ساعات
-              الإنجاز المرفوعة من المتطوعين.
-            </p>
-          </div>
-
-          <Link
-            href="/"
-            className="shrink-0 text-sm font-bold text-molim-muted transition hover:text-molim-orange"
-          >
-            ← الرئيسية
-          </Link>
-        </header>
-
-        {/* طلبات اعتماد الساعات */}
-        <section>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-black text-[var(--foreground)]">
-              طلبات اعتماد الساعات
-            </h2>
-
-            <span className="border border-molim bg-molim-soft px-3 py-1 text-xs font-bold text-molim-foreground">
-              {tasks.length} طلب
-            </span>
-          </div>
-
-          {tasks.length === 0 ? (
-            <Card soft className="p-10 text-center">
-              <p className="text-base font-bold text-molim-foreground">
-                لا توجد طلبات بانتظار المراجعة
+    <RoleGuard allowedRoles={["DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"]}>
+      <PageShell>
+        <div className="space-y-6">
+          {/* ترويسة الصفحة */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <span className="text-xs font-bold text-molim-orange">{roleName}</span>
+              <h1 className="mt-1 text-2xl font-black text-molim-foreground">
+                مراجعة المهام
+              </h1>
+              <p className="mt-1 text-sm text-molim-muted">
+                مراجعة تفاصيل مخرجات المهام المرفوعة من المتطوعين واعتماد الساعات المستحقة رسمياً.
               </p>
+            </div>
 
-              <p className="mt-2 text-sm text-molim-muted">
-                تمت مراجعة جميع طلبات اعتماد الساعات.
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={loadPendingTasks}
+                disabled={loading}
+                className="text-xs"
+              >
+                {loading ? "جاري التحديث..." : "تحديث القائمة 🔄"}
+              </Button>
+
+              <Link href="/tasks">
+                <Button variant="secondary" className="text-xs">
+                  ← صفحة المهام
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          {/* حالة التحميل */}
+          {loading && (
+            <div className="flex min-h-[40vh] items-center justify-center p-8">
+              <div className="flex items-center gap-3 text-molim-muted">
+                <span className="h-6 w-6 animate-spin rounded-full border-2 border-molim-orange border-t-transparent" />
+                <span className="text-sm font-bold">جاري تحميل طلبات مراجعة المهام...</span>
+              </div>
+            </div>
+          )}
+
+          {/* حالة الخطأ العام */}
+          {!loading && fetchError && (
+            <Card className="border-r-4 border-r-red-500 p-6">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">⚠️</span>
+                <div>
+                  <h3 className="font-bold text-red-600">تعذر تحميل المهام للمراجعة</h3>
+                  <p className="mt-1 text-sm text-molim-muted">{fetchError}</p>
+                  <Button
+                    variant="primary"
+                    onClick={loadPendingTasks}
+                    className="mt-4 text-xs"
+                  >
+                    إعادة المحاولة
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* حالة الفراغ */}
+          {!loading && !fetchError && tasks.length === 0 && (
+            <Card className="p-12 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-molim-soft text-3xl">
+                ✨
+              </div>
+              <h3 className="mt-4 text-lg font-black text-molim-foreground">
+                لا توجد مهام بانتظار المراجعة
+              </h3>
+              <p className="mt-1 text-sm text-molim-muted">
+                تمت مراجعة جميع المهام المسلّمة المتاحة لك أو لا توجد مهام جديدة حالياً.
               </p>
             </Card>
-          ) : (
+          )}
+
+          {/* قائمة المهام المعلقة */}
+          {!loading && !fetchError && tasks.length > 0 && (
             <div className="space-y-4">
-              {tasks.map((task) => (
-                <Card key={task.id} className="p-5">
-                  {/* رأس البطاقة */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="text-base font-black text-molim-foreground">
-                        {task.title}
-                      </h3>
+              <div className="flex items-center justify-between text-xs text-molim-muted">
+                <span>طلبات الإنجاز بانتظار المراجعة: {tasks.length}</span>
+              </div>
 
-                      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm">
-                        <span className="font-semibold text-molim-foreground">
-                          {task.volunteer}
-                        </span>
+              {tasks.map((task) => {
+                const isSubmitting = submittingMap[task.id] ?? false;
+                const actionError = actionErrorMap[task.id] ?? null;
 
-                        <span className="border border-molim bg-molim-soft px-2 py-0.5 text-xs text-molim-muted">
-                          {task.department}
+                return (
+                  <Card key={task.id} className="p-5">
+                    {/* رأس بطاقة المهمة */}
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <span className="rounded bg-molim-soft px-2 py-0.5 text-xs text-molim-muted">
+                          قسم: {task.department_name}
                         </span>
+                        <h2 className="mt-1 text-lg font-black text-molim-foreground">
+                          {task.title}
+                        </h2>
+
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                          <span className="font-semibold text-molim-foreground">
+                            المتطوع: {task.volunteer_name}
+                          </span>
+                          {task.volunteer_number && (
+                            <span className="font-mono text-molim-muted">
+                              ({task.volunteer_number})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 text-left sm:text-right">
+                        <span className="border border-molim bg-molim-soft px-2.5 py-1 text-xs text-molim-muted">
+                          تاريخ التسليم: {task.submission_date || "اليوم"}
+                        </span>
+                        <p className="mt-1.5 text-sm font-black text-molim-orange">
+                          الساعات المطلوبة: {task.submitted_hours} ساعة
+                        </p>
                       </div>
                     </div>
 
-                    <span className="shrink-0 border border-molim bg-molim-soft px-3 py-1 text-xs text-molim-muted">
-                      {task.completedAt}
-                    </span>
-                  </div>
+                    {/* متطلبات المهمة الأساسية */}
+                    {task.description && (
+                      <div className="mt-3 rounded bg-molim-soft/50 p-3 text-xs text-molim-muted border border-molim">
+                        <span className="font-bold block mb-1">المطلوب من المهمة:</span>
+                        <p className="whitespace-pre-wrap">{task.description}</p>
+                      </div>
+                    )}
 
-                  {/* الساعات المطلوبة */}
-                  <div className="mt-4 flex items-center justify-between gap-3 bg-molim-card border border-molim p-3">
-                    <p className="text-xs text-molim-muted">
-                      الساعات المطلوبة
-                    </p>
-
-                    <p className="text-xl font-black text-molim-orange">
-                      {task.hours} ساعات
-                    </p>
-                  </div>
-
-                  {/* الوصف والتفاصيل */}
-                  <div className="mt-4">
-                    <p className="text-xs font-bold text-molim-muted">
-                      الوصف والتفاصيل
-                    </p>
-
-                    <p className="mt-2 text-sm leading-7 text-[var(--foreground)]">
-                      {task.description}
-                    </p>
-                  </div>
-
-                  {/* المرفقات والروابط */}
-                  <div className="mt-4">
-                    <p className="text-xs font-bold text-molim-muted">
-                      المرفقات والروابط
-                    </p>
-
-                    <div className="mt-2 space-y-2">
-                      {task.attachments.map((attachment) => (
-                        <div
-                          key={attachment.id}
-                          className="flex items-center justify-between gap-3 border border-molim bg-molim-soft p-3"
-                        >
-                          <div className="flex min-w-0 items-center gap-3">
-                            <span className="shrink-0 text-lg">
-                              {attachmentIcons[attachment.kind]}
-                            </span>
-
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-molim-foreground">
-                                {attachment.name}
-                              </p>
-
-                              <p className="mt-0.5 text-xs text-molim-muted">
-                                {attachment.size}
-                              </p>
-                            </div>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setPreviewAttachment(
-                                attachment
-                              )
-                            }
-                            className="shrink-0 border border-molim bg-molim-card px-3 py-2 text-xs font-bold text-molim-blue transition hover:bg-molim-soft"
-                          >
-                            معاينة
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* لوحة اتخاذ القرار */}
-                  <div className="mt-5 space-y-3 border-t border-molim pt-4">
-                    <div>
-                      <label
-                        htmlFor={`hours-${task.id}`}
-                        className="mb-2 block text-xs font-bold text-molim-muted"
-                      >
-                        الساعات المعتمدة
-                        <span className="mr-1 font-normal">
-                          (قابلة للتعديل — الافتراضي طلب
-                          المتطوع)
-                        </span>
-                      </label>
-
-                      <input
-                        id={`hours-${task.id}`}
-                        type="number"
-                        min="0"
-                        value={getHoursValue(task)}
-                        onChange={(event) =>
-                          setHours(task.id, event.target.value)
-                        }
-                        className="molim-input"
-                      />
+                    {/* ما أنجزه المتطوع مع الروابط والمرفقات */}
+                    <div className="mt-3 rounded bg-molim-soft p-3.5 text-sm border border-molim">
+                      <span className="font-bold text-xs text-molim-muted block mb-1">
+                        تفاصيل إنجاز المتطوع ومخرجات العمل:
+                      </span>
+                      <p className="leading-6 text-molim-foreground whitespace-pre-wrap">
+                        {task.submission_notes || "تم تسليم العمل بنجاح."}
+                      </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        type="button"
-                        onClick={() => approveTask(task)}
-                        className="border-green-600! bg-green-600! hover:opacity-90"
-                      >
-                        ✅ اعتماد
-                      </Button>
+                    {/* رسالة الخطأ إن وجدت */}
+                    {actionError && (
+                      <div className="mt-3 rounded border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-700">
+                        {actionError}
+                      </div>
+                    )}
 
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => requestReject(task)}
-                        className="border-red-600! bg-red-600! hover:opacity-90"
-                      >
-                        ❌ رفض
-                      </Button>
-                    </div>
-
-                    {rejectingId === task.id && (
-                      <div className="space-y-3 border border-red-200 bg-red-50 p-3">
+                    {/* لوحة القرار والاعتماد */}
+                    <div className="mt-4 border-t border-molim pt-4 space-y-3">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
-                          <label
-                            htmlFor={`reason-${task.id}`}
-                            className="mb-2 block text-xs font-bold text-red-700"
-                          >
-                            سبب الرفض (اختياري)
+                          <label className="block text-xs font-bold text-molim-foreground mb-1">
+                            الساعات المعتمدة (قابلة للتعديل عند الحاجة)
                           </label>
-
-                          <textarea
-                            id={`reason-${task.id}`}
-                            rows={3}
-                            value={rejectReason}
-                            onChange={(event) =>
-                              setRejectReason(
-                                event.target.value
-                              )
-                            }
-                            placeholder="اكتب سبب الرفض ليعود للمتطوع..."
-                            className="molim-textarea"
+                          <input
+                            type="number"
+                            min="0.25"
+                            max="24"
+                            step="0.25"
+                            disabled={isSubmitting}
+                            value={getHoursValue(task)}
+                            onChange={(e) => setHours(task.id, e.target.value)}
+                            className="w-full rounded border border-molim bg-molim-surface px-3 py-2 text-sm text-molim-foreground focus:outline-none focus:border-molim-orange"
                           />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="flex items-end gap-2">
                           <Button
                             type="button"
-                            onClick={() => confirmReject(task)}
-                            className="border-red-600! bg-red-600! hover:opacity-90"
+                            disabled={isSubmitting}
+                            onClick={() => approveTask(task)}
+                            className="flex-1 text-xs bg-green-600 hover:bg-green-700 text-white"
                           >
-                            تأكيد الرفض
+                            {isSubmitting ? "جاري الاعتماد..." : "✅ اعتماد المهمة والساعات"}
                           </Button>
 
                           <Button
                             type="button"
-                            variant="outline"
-                            onClick={cancelReject}
+                            variant="secondary"
+                            disabled={isSubmitting}
+                            onClick={() => requestReject(task)}
+                            className="text-xs bg-red-600 hover:bg-red-700 text-white"
                           >
-                            إلغاء
+                            ❌ رفض / طلب تعديل
                           </Button>
                         </div>
                       </div>
-                    )}
-                  </div>
-                </Card>
-              ))}
+
+                      {/* نافذة أو لوحة الرفض مع السبب */}
+                      {rejectingId === task.id && (
+                        <div className="rounded border border-red-200 bg-red-50 p-4 space-y-3">
+                          <div>
+                            <label className="block text-xs font-bold text-red-700 mb-1">
+                              سبب الرفض أو التعديلات المطلوبة من المتطوع (إجباري):
+                            </label>
+                            <textarea
+                              rows={2}
+                              disabled={isSubmitting}
+                              value={rejectReason}
+                              onChange={(e) => setRejectReason(e.target.value)}
+                              placeholder="اكتب التوجيهات أو سبب الرفض ليعود للمتطوع..."
+                              className="w-full rounded border border-red-300 bg-white p-3 text-xs text-red-900 focus:outline-none focus:border-red-500"
+                            />
+                          </div>
+
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={cancelReject}
+                              disabled={isSubmitting}
+                              className="text-xs"
+                            >
+                              إلغاء
+                            </Button>
+                            <Button
+                              type="button"
+                              disabled={isSubmitting}
+                              onClick={() => confirmReject(task)}
+                              className="text-xs bg-red-600 hover:bg-red-700 text-white"
+                            >
+                              {isSubmitting ? "جاري الإرسال..." : "تأكيد الرفض وإعادة المهمة"}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
           )}
-        </section>
 
-        {/* تمت المراجعة */}
-        {completedReviews.length > 0 && (
-          <section className="mt-8">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-black text-[var(--foreground)]">
-                تمت المراجعة
-              </h2>
+          {/* قائمة المهام التي روجعت في هذه الجلسة */}
+          {completedReviews.length > 0 && (
+            <div className="mt-8 space-y-3">
+              <div className="flex items-center justify-between text-xs text-molim-muted">
+                <h3 className="font-bold text-sm text-molim-foreground">تمت مراجعتها مؤخراً:</h3>
+                <span>{completedReviews.length} مهمة</span>
+              </div>
 
-              <span className="text-sm text-molim-muted">
-                {completedReviews.length} عملية
-              </span>
-            </div>
-
-            <div className="space-y-2">
-              {completedReviews.map((review) => (
-                <Card
-                  key={review.id}
-                  className="flex flex-wrap items-center justify-between gap-3 p-4"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-molim-foreground">
-                      {review.title}
-                    </p>
-
-                    <p className="mt-0.5 text-xs text-molim-muted">
-                      {review.volunteer}
-                    </p>
-
-                    {review.decision === "مرفوضة" &&
-                      review.reason && (
-                        <p className="mt-1 text-xs leading-5 text-red-700">
-                          السبب: {review.reason}
-                        </p>
+              <div className="space-y-2">
+                {completedReviews.map((log) => (
+                  <Card key={log.id} className="p-4 flex items-center justify-between gap-3 text-xs">
+                    <div>
+                      <p className="font-bold text-molim-foreground">{log.title}</p>
+                      <p className="text-molim-muted mt-0.5">{log.volunteer}</p>
+                      {log.reason && (
+                        <p className="text-red-600 mt-1">السبب: {log.reason}</p>
                       )}
-                  </div>
+                    </div>
 
-                  <span
-                    className={`shrink-0 border px-3 py-1 text-xs font-bold ${
-                      review.decision === "معتمدة"
-                        ? "border-green-200 bg-green-50 text-green-700"
-                        : "border-red-200 bg-red-50 text-red-700"
-                    }`}
-                  >
-                    {review.decision === "معتمدة"
-                      ? `اعتماد ${review.hours} ساعات`
-                      : "رفض"}
-                  </span>
-                </Card>
-              ))}
-            </div>
-          </section>
-        )}
-      </PageShell>
-
-      {/* معاينة المرفق */}
-      {previewAttachment && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setPreviewAttachment(null);
-            }
-          }}
-        >
-          <div className="w-full max-w-md border border-molim bg-molim-surface p-5 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm text-molim-muted">
-                  معاينة المرفق
-                </p>
-
-                <h2 className="mt-1 text-lg font-black text-molim-foreground">
-                  {previewAttachment.name}
-                </h2>
+                    <span
+                      className={`rounded px-2.5 py-1 font-bold ${
+                        log.decision === "معتمدة"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {log.decision === "معتمدة"
+                        ? `معتمدة (${log.hours} ساعة)`
+                        : "مرفوضة"}
+                    </span>
+                  </Card>
+                ))}
               </div>
-
-              <button
-                type="button"
-                onClick={() => setPreviewAttachment(null)}
-                className="bg-molim-soft px-3 py-2 text-molim-foreground transition hover:bg-molim-soft"
-              >
-                ✕
-              </button>
             </div>
-
-            <div className="mt-5 space-y-4">
-              {previewAttachment.preview ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={previewAttachment.preview}
-                  alt={previewAttachment.name}
-                  className="w-full border border-molim bg-molim-soft"
-                />
-              ) : (
-                <div className="border border-molim bg-molim-soft p-6 text-center">
-                  <span className="text-3xl">
-                    {attachmentIcons[previewAttachment.kind]}
-                  </span>
-
-                  <p className="mt-3 text-sm text-molim-muted">
-                    هذا المرفق من نوع «
-                    {previewAttachment.kind}
-                    » وهو متاح داخل النظام.
-                  </p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <InfoBox
-                  title="النوع"
-                  value={previewAttachment.kind}
-                />
-
-                <InfoBox
-                  title="الحجم"
-                  value={previewAttachment.size}
-                />
-              </div>
-
-              {previewAttachment.url && (
-                <a
-                  href={previewAttachment.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex h-12 w-full items-center justify-center bg-molim-blue text-sm font-bold text-white transition hover:opacity-90"
-                >
-                  فتح المرفق في Drive ←
-                </a>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setPreviewAttachment(null)}
-                className="h-12 w-full cursor-pointer border border-molim bg-molim-surface font-semibold text-molim-foreground transition hover:bg-molim-soft"
-              >
-                إغلاق
-              </button>
-            </div>
-          </div>
+          )}
         </div>
-      )}
+      </PageShell>
     </RoleGuard>
-  );
-}
-
-function InfoBox({
-  title,
-  value,
-}: {
-  title: string;
-  value: string;
-}) {
-  return (
-    <div className="border border-molim p-4">
-      <p className="text-xs text-molim-muted">
-        {title}
-      </p>
-
-      <p className="mt-1 font-semibold text-molim-foreground">
-        {value}
-      </p>
-    </div>
   );
 }

@@ -225,9 +225,9 @@ export default function Home() {
           </div>
 
           <div className="mt-5">
-            <Link href="/hours">
+            <Link href="/tasks">
               <Button variant="primary" className="w-full">
-                عرض الساعات
+                عرض المهام
               </Button>
             </Link>
           </div>
@@ -331,8 +331,7 @@ export default function Home() {
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-molim-muted">
-              يمكنك متابعة مهام القسم والأعضاء وإضافة المهام
-              من القائمة الجانبية أو صفحة المهام.
+              يمكنك متابعة مهام القسم والأعضاء ومراجعة المهام المرفوعة من القائمة الجانبية أو صفحة المهام.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
@@ -342,9 +341,9 @@ export default function Home() {
                 </Button>
               </Link>
 
-              <Link href="/hours-review">
+              <Link href="/task-review">
                 <Button variant="outline">
-                  مراجعة الساعات
+                  مراجعة المهام
                 </Button>
               </Link>
 
@@ -368,13 +367,19 @@ export default function Home() {
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-molim-muted">
-              يمكنك متابعة المتطوعين ومراجعة الساعات وطلبات الشهادات.
+              يمكنك متابعة المتطوعين ومراجعة المهام وطلبات الشهادات.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
               <Link href="/volunteers">
                 <Button variant="secondary">
                   المتطوعون
+                </Button>
+              </Link>
+
+              <Link href="/task-review">
+                <Button variant="outline">
+                  مراجعة المهام
                 </Button>
               </Link>
 
@@ -404,7 +409,7 @@ export default function Home() {
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-molim-muted">
-              يمكنك متابعة المتطوعين ومراجعة المهام والساعات وطلبات الشهادات.
+              يمكنك متابعة المتطوعين ومراجعة المهام وطلبات الشهادات.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
@@ -414,15 +419,15 @@ export default function Home() {
                 </Button>
               </Link>
 
-              <Link href="/certificate-requests">
-                <Button variant="primary">
-                  طلبات الشهادات
+              <Link href="/task-review">
+                <Button variant="outline">
+                  مراجعة المهام
                 </Button>
               </Link>
 
-              <Link href="/hours-review">
-                <Button variant="outline">
-                  مراجعة الساعات
+              <Link href="/certificate-requests">
+                <Button variant="primary">
+                  طلبات الشهادات
                 </Button>
               </Link>
             </div>

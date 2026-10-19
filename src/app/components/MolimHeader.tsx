@@ -85,10 +85,6 @@ export default function MolimHeader() {
       href: "/tasks",
     },
     {
-      title: "الساعات التطوعية",
-      href: "/hours",
-    },
-    {
       title: "الشهادات والخطابات",
       href: "/certificates",
     },
@@ -107,8 +103,8 @@ export default function MolimHeader() {
       href: "/add-task",
     },
     {
-      title: "مراجعة الساعات",
-      href: "/hours-review",
+      title: "مراجعة المهام",
+      href: "/task-review",
     },
   ];
 
@@ -117,8 +113,8 @@ export default function MolimHeader() {
      ========================================= */
   const hrMenu: MenuItem[] = [
     {
-      title: "مراجعة الساعات",
-      href: "/hours-review",
+      title: "مراجعة المهام",
+      href: "/task-review",
     },
     {
       title: "طلبات الشهادات",
@@ -139,8 +135,8 @@ export default function MolimHeader() {
      ========================================= */
   const adminMenu: MenuItem[] = [
     {
-      title: "مراجعة الساعات",
-      href: "/hours-review",
+      title: "مراجعة المهام",
+      href: "/task-review",
     },
     {
       title: "طلبات الشهادات",
@@ -149,10 +145,6 @@ export default function MolimHeader() {
     {
       title: "المتطوعون",
       href: "/volunteers",
-    },
-    {
-      title: "الساعات",
-      href: "/hours",
     },
     {
       title: "إضافة الأعضاء",
@@ -164,6 +156,10 @@ export default function MolimHeader() {
      الرئيس العام — إدارة النظام
      ========================================= */
   const superAdminMenu: MenuItem[] = [
+    {
+      title: "مراجعة المهام",
+      href: "/task-review",
+    },
     {
       title: "طلبات الشهادات",
       href: "/certificate-requests",

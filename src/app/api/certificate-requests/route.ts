@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "../../lib/supabase/server";
 import { authenticateRequest } from "../../lib/server-auth";
 import type { UserRole } from "../../lib/roles";
+import {
+  checkCertificateEligibility,
+  countUserCompletedTasks,
+} from "../../lib/certificates-policy";
 
 const VALID_TYPES = [
   "volunteer",
@@ -199,7 +203,7 @@ export async function POST(request: Request) {
   // 3. احتساب الساعات المعتمدة للمستخدم
   const { data: hoursRows } = await supabase
     .from("hours_logs")
-    .select("approved_hours, submitted_hours")
+    .select("approved_hours, submitted_hours, task_id")
     .eq("user_id", auth.user.id)
     .eq("status", "approved");
 
@@ -209,20 +213,33 @@ export async function POST(request: Request) {
   );
 
   // 4. التحقق من أهلية الطلب حسب شروط الاستحقاق
-  if (certType === "volunteer" && totalApprovedHours < 40) {
-    return NextResponse.json(
-      {
-        error: `شهادة التطوع تتطلب إكمال 40 ساعة معتمدة كحد أدنى. ساعاتك الحالية: ${totalApprovedHours} ساعة.`,
-      },
-      { status: 400 }
-    );
+  let completedTasksCount = 0;
+  if (certType === "participation") {
+    const { data: taskRows } = await supabase
+      .from("tasks")
+      .select("id, status, assigned_to, target_user_id, created_by")
+      .eq("status", "completed");
+
+    completedTasksCount = countUserCompletedTasks({
+      userId: auth.user.id,
+      tasks: taskRows ?? [],
+      approvedHoursLogs: (hoursRows ?? []).map((h) => ({
+        task_id: (h as { task_id?: string | null }).task_id,
+        status: "approved",
+      })),
+    });
   }
 
-  if (certType === "expertise" && totalApprovedHours < 300) {
+  const eligibility = checkCertificateEligibility({
+    type: certType,
+    userStatus: userRow.status,
+    approvedHours: totalApprovedHours,
+    completedTasksCount,
+  });
+
+  if (!eligibility.isEligible) {
     return NextResponse.json(
-      {
-        error: `شهادة الخبرة تتطلب إكمال 300 ساعة معتمدة كحد أدنى. ساعاتك الحالية: ${totalApprovedHours} ساعة.`,
-      },
+      { error: eligibility.reason || "لم تستوفِ شروط الاستحقاق لهذا الطلب." },
       { status: 400 }
     );
   }

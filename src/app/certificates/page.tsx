@@ -7,12 +7,20 @@ import { useAuth } from "../lib/auth-context";
 import {
   fetchMyHours,
   fetchCertificateRequests,
+  fetchTasks,
   submitCertificateRequest,
   CERTIFICATE_TYPE_TO_ARABIC,
   CERTIFICATE_STATUS_TO_ARABIC,
   type CertificateRequestDTO,
   type CertificateRequestType,
 } from "../lib/supabase/dto";
+import {
+  checkCertificateEligibility,
+  countUserCompletedTasks,
+  PARTICIPATION_MIN_TASKS,
+  VOLUNTEER_MIN_HOURS,
+  EXPERTISE_MIN_HOURS,
+} from "../lib/certificates-policy";
 
 type CertificateDef = {
   id: CertificateRequestType;
@@ -20,6 +28,7 @@ type CertificateDef = {
   description: string;
   requirement: string;
   targetHours?: number;
+  targetTasks?: number;
   icon: string;
 };
 
@@ -28,23 +37,24 @@ const CERTIFICATE_DEFINITIONS: CertificateDef[] = [
     id: "volunteer",
     title: "شهادة التطوع",
     description: "شهادة تقديرية توثق مشاركتك في العمل التطوعي مع فريق مُلم.",
-    requirement: "إكمال 40 ساعة تطوعية معتمدة",
-    targetHours: 40,
+    requirement: `إكمال ${VOLUNTEER_MIN_HOURS} ساعة تطوعية معتمدة`,
+    targetHours: VOLUNTEER_MIN_HOURS,
     icon: "🏅",
   },
   {
     id: "participation",
     title: "شهادة المشاركة",
     description: "شهادة توثق مشاركتك الفعلية في أعمال وأنشطة فريق مُلم.",
-    requirement: "المشاركة الفعلية في أعمال الفريق",
+    requirement: "إكمال مهمة واحدة على الأقل",
+    targetTasks: PARTICIPATION_MIN_TASKS,
     icon: "🎖️",
   },
   {
     id: "expertise",
     title: "شهادة الخبرة",
     description: "شهادة توثق الخبرة التي اكتسبتها من خلال العمل والمشاركة المستمرة.",
-    requirement: "إكمال 300 ساعة تطوعية معتمدة",
-    targetHours: 300,
+    requirement: `إكمال ${EXPERTISE_MIN_HOURS} ساعة تطوعية معتمدة`,
+    targetHours: EXPERTISE_MIN_HOURS,
     icon: "🏆",
   },
 ];
@@ -53,6 +63,7 @@ export default function CertificatesPage() {
   const { user, isReady } = useAuth();
 
   const [approvedHours, setApprovedHours] = useState<number>(0);
+  const [completedTasksCount, setCompletedTasksCount] = useState<number>(0);
   const [requests, setRequests] = useState<CertificateRequestDTO[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [submittingType, setSubmittingType] = useState<string | null>(null);
@@ -69,9 +80,10 @@ export default function CertificatesPage() {
     async function loadData() {
       setLoading(true);
       try {
-        const [hoursRes, certRes] = await Promise.all([
+        const [hoursRes, certRes, tasksRes] = await Promise.all([
           fetchMyHours(),
           fetchCertificateRequests({ mine: true }),
+          fetchTasks(),
         ]);
 
         if (!isMounted) return;
@@ -90,6 +102,15 @@ export default function CertificatesPage() {
         if (certRes?.ok && certRes.requests) {
           setRequests(certRes.requests);
         }
+
+        const completedCount = countUserCompletedTasks({
+          userId: user?.id || "",
+          tasks: tasksRes?.tasks ?? [],
+          approvedHoursLogs: (hoursRes?.hours ?? []).filter(
+            (h) => h.status === "approved"
+          ),
+        });
+        setCompletedTasksCount(completedCount);
       } catch {
         // تجاهل الخطأ المؤقت
       } finally {
@@ -102,7 +123,7 @@ export default function CertificatesPage() {
     return () => {
       isMounted = false;
     };
-  }, [isReady]);
+  }, [isReady, user?.id]);
 
   // الطلبات المعلقة أو الصادرة المصنفة حسب النوع
   const existingRequestsByType = useMemo(() => {
@@ -234,17 +255,16 @@ export default function CertificatesPage() {
 
             {CERTIFICATE_DEFINITIONS.map((cert) => {
               const existing = existingRequestsByType.get(cert.id);
-              const isEligible =
-                cert.targetHours !== undefined
-                  ? approvedHours >= cert.targetHours
-                  : user?.status === "active";
+              const eligibility = checkCertificateEligibility({
+                type: cert.id,
+                userStatus: user?.status,
+                approvedHours,
+                completedTasksCount,
+              });
+              const isEligible = eligibility.isEligible;
+              const progressText = eligibility.progressText;
 
               const isSubmitting = submittingType === cert.id;
-
-              const progressText =
-                cert.targetHours !== undefined
-                  ? `${approvedHours} / ${cert.targetHours} ساعة`
-                  : undefined;
 
               return (
                 <article
@@ -334,7 +354,11 @@ export default function CertificatesPage() {
                       </button>
                     ) : (
                       <div className="flex items-center justify-between border border-molim bg-molim-soft px-4 py-3 text-xs text-molim-muted">
-                        <span>لم تستوفِ شروط الاستحقاق بعد</span>
+                        <span>
+                          {cert.targetTasks !== undefined
+                            ? "لم تستوفِ شروط الاستحقاق بعد (يتطلب إكمال مهمة واحدة على الأقل)"
+                            : "لم تستوفِ شروط الاستحقاق بعد"}
+                        </span>
                         <span>🔒</span>
                       </div>
                     )}

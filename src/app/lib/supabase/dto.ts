@@ -634,3 +634,53 @@ export async function updateCertificateRequest(
   return { ok: true, request: data.request };
 }
 
+export type TaskDTO = {
+  id: string | number;
+  title: string;
+  description: string | null;
+  status: string;
+  target_type: string;
+  target_user_id: string | null;
+  assigned_to: string | null;
+  created_by: string;
+  department_id: string | null;
+  requested_hours: number | null;
+  due_date: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function fetchTasks(): Promise<{
+  ok: boolean;
+  tasks: TaskDTO[];
+  error?: string;
+}> {
+  const response = await fetch("/api/tasks", {
+    headers: authHeaders(),
+  }).catch(() => null);
+
+  if (!response) {
+    return {
+      ok: false,
+      tasks: [],
+      error: "تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت.",
+    };
+  }
+
+  const data = await parseJson<{
+    ok?: boolean;
+    tasks?: TaskDTO[];
+    error?: string;
+  }>(response);
+
+  if (!response.ok || !data?.ok) {
+    return {
+      ok: false,
+      tasks: [],
+      error: data?.error ?? "تعذر جلب قائمة المهام.",
+    };
+  }
+
+  return { ok: true, tasks: data.tasks ?? [] };
+}
+

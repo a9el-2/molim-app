@@ -137,6 +137,8 @@ export async function GET(request: Request) {
         creator_name: creatorName || row.created_by,
         creator_number: creatorObj?.id ?? row.created_by,
         assigned_to: row.assigned_to,
+        review_decision: row.review_decision ?? null,
+        review_reason: row.review_reason ?? null,
         created_at: row.created_at,
         updated_at: row.updated_at,
       });
