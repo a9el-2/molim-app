@@ -89,6 +89,10 @@ export default function MolimHeader() {
       href: "/hours",
     },
     {
+      title: "الشهادات والخطابات",
+      href: "/certificates",
+    },
+    {
       title: "حسابي",
       href: "/account",
     },
@@ -117,6 +121,10 @@ export default function MolimHeader() {
       href: "/hours-review",
     },
     {
+      title: "طلبات الشهادات",
+      href: "/certificate-requests",
+    },
+    {
       title: "المتطوعون",
       href: "/volunteers",
     },
@@ -133,6 +141,10 @@ export default function MolimHeader() {
     {
       title: "مراجعة الساعات",
       href: "/hours-review",
+    },
+    {
+      title: "طلبات الشهادات",
+      href: "/certificate-requests",
     },
     {
       title: "المتطوعون",
@@ -152,6 +164,10 @@ export default function MolimHeader() {
      الرئيس العام — إدارة النظام
      ========================================= */
   const superAdminMenu: MenuItem[] = [
+    {
+      title: "طلبات الشهادات",
+      href: "/certificate-requests",
+    },
     {
       title: "الأدوار والصلاحيات",
       href: "/roles",

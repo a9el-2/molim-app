@@ -1,129 +1,29 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import PageShell from "../components/PageShell";
 import RoleGuard from "../components/RoleGuard";
-
-type RequestStatus =
-  | "قيد المراجعة"
-  | "بانتظار الاعتماد"
-  | "صادرة"
-  | "مرفوضة";
-
-type RequestType =
-  | "شهادة التطوع"
-  | "شهادة المشاركة"
-  | "شهادة الخبرة"
-  | "خطاب توصية";
-
-type CertificateRequest = {
-  id: number;
-  volunteer: string;
-  molimId: string;
-  type: RequestType;
-  status: RequestStatus;
-  hours: number;
-  volunteerPeriod: string;
-  department: string;
-  requestDate: string;
-  departmentHead: string;
-  evaluation: string;
-  notes: string;
-  reviewer: string;
-  reviewedAt: string;
-};
+import { useAuth } from "../lib/auth-context";
+import {
+  fetchCertificateRequests,
+  updateCertificateRequest,
+  CERTIFICATE_TYPE_TO_ARABIC,
+  CERTIFICATE_STATUS_TO_ARABIC,
+  CERTIFICATE_STATUS_FROM_ARABIC,
+  type CertificateRequestDTO,
+  type CertificateRequestStatus,
+} from "../lib/supabase/dto";
 
 type FilterType =
   | "الكل"
   | "شهادات"
   | "خطابات توصية"
-  | RequestStatus;
+  | "قيد المراجعة"
+  | "بانتظار الاعتماد"
+  | "صادرة"
+  | "مرفوضة";
 
-const CURRENT_REVIEWER = "أصيل";
-
-const initialRequests: CertificateRequest[] = [
-  {
-    id: 1,
-    volunteer: "محمد أحمد",
-    molimId: "MOL-00012",
-    type: "شهادة التطوع",
-    status: "قيد المراجعة",
-    hours: 52,
-    volunteerPeriod: "3 أشهر",
-    department: "الإدارة",
-    requestDate: "2026/09/01",
-    departmentHead: "أحمد خالد",
-    evaluation: "أداء جيد والتزام مستمر بالمهام.",
-    notes: "",
-    reviewer: "",
-    reviewedAt: "",
-  },
-  {
-    id: 2,
-    volunteer: "خالد علي",
-    molimId: "MOL-00008",
-    type: "شهادة الخبرة",
-    status: "بانتظار الاعتماد",
-    hours: 320,
-    volunteerPeriod: "6 أشهر",
-    department: "الإدارة",
-    requestDate: "2026/08/30",
-    departmentHead: "أحمد خالد",
-    evaluation: "أداء ممتاز ومشاركة فعالة في مهام القسم.",
-    notes: "الطلب مكتمل وينتظر الاعتماد.",
-    reviewer: "الموارد البشرية",
-    reviewedAt: "2026/08/31",
-  },
-  {
-    id: 3,
-    volunteer: "سارة محمد",
-    molimId: "MOL-00015",
-    type: "خطاب توصية",
-    status: "قيد المراجعة",
-    hours: 185,
-    volunteerPeriod: "5 أشهر",
-    department: "البحث",
-    requestDate: "2026/08/29",
-    departmentHead: "أصيل",
-    evaluation: "ممتازة في البحث وتحليل المعلومات.",
-    notes: "",
-    reviewer: "",
-    reviewedAt: "",
-  },
-  {
-    id: 4,
-    volunteer: "محمد علي",
-    molimId: "MOL-00019",
-    type: "شهادة المشاركة",
-    status: "صادرة",
-    hours: 68,
-    volunteerPeriod: "4 أشهر",
-    department: "الإعلام",
-    requestDate: "2026/08/27",
-    departmentHead: "أحمد خالد",
-    evaluation: "مشاركة جيدة في أنشطة الفريق.",
-    notes: "تم إصدار الشهادة.",
-    reviewer: "أصيل",
-    reviewedAt: "2026/08/28",
-  },
-  {
-    id: 5,
-    volunteer: "عبدالله حسن",
-    molimId: "MOL-00021",
-    type: "خطاب توصية",
-    status: "مرفوضة",
-    hours: 40,
-    volunteerPeriod: "شهر واحد",
-    department: "البحث",
-    requestDate: "2026/08/25",
-    departmentHead: "سارة محمد",
-    evaluation: "المعلومات غير كافية لإصدار التوصية.",
-    notes: "يحتاج المتطوع إلى مدة وتقييم أداء أكبر.",
-    reviewer: "أصيل",
-    reviewedAt: "2026/08/26",
-  },
-];
-
-const filters: FilterType[] = [
+const FILTERS: FilterType[] = [
   "الكل",
   "شهادات",
   "خطابات توصية",
@@ -134,33 +34,55 @@ const filters: FilterType[] = [
 ];
 
 export default function CertificateRequestsPage() {
-  const [requests, setRequests] =
-    useState<CertificateRequest[]>(initialRequests);
+  const { user, isReady } = useAuth();
 
-  const [activeFilter, setActiveFilter] =
-    useState<FilterType>("الكل");
-
+  const [requests, setRequests] = useState<CertificateRequestDTO[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState<FilterType>("الكل");
   const [search, setSearch] = useState("");
 
   const [selectedRequest, setSelectedRequest] =
-    useState<CertificateRequest | null>(null);
-
+    useState<CertificateRequestDTO | null>(null);
   const [reviewNotes, setReviewNotes] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const [feedback, setFeedback] = useState<{
+    text: string;
+    type: "success" | "error";
+  } | null>(null);
+
+  const loadRequests = async () => {
+    setLoading(true);
+    try {
+      const res = await fetchCertificateRequests();
+      if (res.ok && res.requests) {
+        setRequests(res.requests);
+      }
+    } catch {
+      // تجاهل الخطأ
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isReady) return;
+    loadRequests();
+  }, [isReady]);
 
   const pendingCount = requests.filter(
-    (request) => request.status === "قيد المراجعة"
+    (r) => r.status === "in_review" || r.status === ("قيد المراجعة" as CertificateRequestStatus)
   ).length;
 
   const approvedCount = requests.filter(
-    (request) => request.status === "بانتظار الاعتماد"
+    (r) => r.status === "pending_approval" || r.status === ("بانتظار الاعتماد" as CertificateRequestStatus)
   ).length;
 
   const issuedCount = requests.filter(
-    (request) => request.status === "صادرة"
+    (r) => r.status === "issued" || r.status === ("صادرة" as CertificateRequestStatus)
   ).length;
 
   const rejectedCount = requests.filter(
-    (request) => request.status === "مرفوضة"
+    (r) => r.status === "rejected" || r.status === ("مرفوضة" as CertificateRequestStatus)
   ).length;
 
   const totalCount = requests.length;
@@ -168,502 +90,446 @@ export default function CertificateRequestsPage() {
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    return requests.filter((request) => {
+    return requests.filter((req) => {
       let matchesFilter = true;
+      const typeArabic = CERTIFICATE_TYPE_TO_ARABIC[req.type] || req.type;
+      const statusArabic = CERTIFICATE_STATUS_TO_ARABIC[req.status] || req.status;
 
       if (activeFilter === "شهادات") {
-        matchesFilter = request.type !== "خطاب توصية";
+        matchesFilter = req.type !== "recommendation_letter";
       } else if (activeFilter === "خطابات توصية") {
-        matchesFilter = request.type === "خطاب توصية";
-      } else if (
-        activeFilter !== "الكل"
-      ) {
-        matchesFilter = request.status === activeFilter;
+        matchesFilter = req.type === "recommendation_letter";
+      } else if (activeFilter !== "الكل") {
+        const targetBackendStatus = CERTIFICATE_STATUS_FROM_ARABIC[activeFilter];
+        matchesFilter = req.status === targetBackendStatus || statusArabic === activeFilter;
       }
+
+      const volunteerName = req.user
+        ? `${req.user.first_name || ""} ${req.user.last_name || ""}`.trim()
+        : "";
+      const volunteerId = req.user?.id || req.user_id || "";
+      const deptName = req.department?.name || "";
 
       const matchesSearch =
         !query ||
-        request.volunteer.toLowerCase().includes(query) ||
-        request.molimId.toLowerCase().includes(query) ||
-        request.type.toLowerCase().includes(query) ||
-        request.department.toLowerCase().includes(query);
+        volunteerName.toLowerCase().includes(query) ||
+        volunteerId.toLowerCase().includes(query) ||
+        typeArabic.toLowerCase().includes(query) ||
+        deptName.toLowerCase().includes(query);
 
       return matchesFilter && matchesSearch;
     });
   }, [requests, activeFilter, search]);
 
-  function openRequest(request: CertificateRequest) {
-    setSelectedRequest(request);
-    setReviewNotes(request.notes);
+  function openRequest(req: CertificateRequestDTO) {
+    setSelectedRequest(req);
+    setReviewNotes(req.notes || "");
+    setFeedback(null);
   }
 
   function closeRequest() {
     setSelectedRequest(null);
     setReviewNotes("");
+    setFeedback(null);
   }
 
-  function updateRequestStatus(
-    newStatus:
-      | "بانتظار الاعتماد"
-      | "صادرة"
-      | "مرفوضة"
+  async function handleUpdateStatus(
+    newStatus: "pending_approval" | "issued" | "rejected"
   ) {
     if (!selectedRequest) return;
 
-    const reviewedDate =
-      new Date().toLocaleDateString("ar-SA");
+    setActionLoading(true);
+    setFeedback(null);
 
-    setRequests((current) =>
-      current.map((request) =>
-        request.id === selectedRequest.id
-          ? {
-              ...request,
-              status: newStatus,
-              notes: reviewNotes.trim(),
-              reviewer: CURRENT_REVIEWER,
-              reviewedAt: reviewedDate,
-            }
-          : request
-      )
-    );
+    try {
+      const res = await updateCertificateRequest(selectedRequest.id, {
+        status: newStatus,
+        notes: reviewNotes.trim(),
+      });
 
-    closeRequest();
-    setActiveFilter(newStatus);
+      if (res.ok && res.request) {
+        setRequests((prev) =>
+          prev.map((r) => (r.id === selectedRequest.id ? res.request! : r))
+        );
+        setSelectedRequest(res.request);
+        setFeedback({
+          type: "success",
+          text: `تم تحديث حالة الطلب إلى "${CERTIFICATE_STATUS_TO_ARABIC[newStatus]}" بنجاح.`,
+        });
+      } else {
+        setFeedback({
+          type: "error",
+          text: res.error || "تعذر تحديث حالة الطلب.",
+        });
+      }
+    } catch {
+      setFeedback({
+        type: "error",
+        text: "حدث خطأ غير متوقع أثناء تحديث الطلب.",
+      });
+    } finally {
+      setActionLoading(false);
+    }
   }
 
-  function getStatusStyle(status: RequestStatus) {
-    if (status === "قيد المراجعة") {
-      return "border-yellow-200 bg-yellow-50 text-yellow-700";
+  function getStatusStyle(status: string) {
+    switch (status) {
+      case "in_review":
+      case "قيد المراجعة":
+        return "border-yellow-200 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400 dark:border-yellow-900";
+      case "pending_approval":
+      case "بانتظار الاعتماد":
+        return "border-blue-200 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900";
+      case "issued":
+      case "صادرة":
+        return "border-green-200 bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400 dark:border-green-900";
+      case "rejected":
+      case "مرفوضة":
+        return "border-red-200 bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900";
+      default:
+        return "border-molim bg-molim-soft text-molim-muted";
     }
-
-    if (status === "بانتظار الاعتماد") {
-      return "border-blue-200 bg-blue-50 text-blue-700";
-    }
-
-    if (status === "صادرة") {
-      return "border-green-200 bg-green-50 text-green-700";
-    }
-
-    return "border-red-200 bg-red-50 text-red-700";
   }
 
   return (
     <RoleGuard>
-    <main
-      dir="rtl"
-      className="min-h-screen bg-molim px-4 py-5 text-molim-foreground"
-    >
-      <div className="mx-auto max-w-5xl">
-
-        {/* Breadcrumb */}
-        <div className="mb-5 text-sm text-molim-muted">
-          <span>الرئيسية</span>
-          <span className="mx-2">←</span>
-          <span>الموارد البشرية</span>
-          <span className="mx-2">←</span>
-          <span className="font-semibold text-molim-foreground">
-            طلبات الشهادات والتوصيات
-          </span>
-        </div>
-
-        {/* Header */}
-        <section className="mb-6">
-          <h1 className="text-2xl font-bold">
-            طلبات الشهادات والتوصيات
-          </h1>
-
-          <p className="mt-2 text-sm leading-6 text-molim-muted">
-            مراجعة طلبات الشهادات وخطابات التوصية ومتابعة
-            حالتها حتى الإصدار.
-          </p>
-        </section>
-
-        {/* Statistics */}
-        <section className="grid grid-cols-2 gap-3 md:grid-cols-5">
-          <StatCard
-            title="قيد المراجعة"
-            value={pendingCount}
-            icon="⏳"
-          />
-
-          <StatCard
-            title="بانتظار الاعتماد"
-            value={approvedCount}
-            icon="🕐"
-          />
-
-          <StatCard
-            title="صادرة"
-            value={issuedCount}
-            icon="✅"
-          />
-
-          <StatCard
-            title="مرفوضة"
-            value={rejectedCount}
-            icon="❌"
-          />
-
-          <StatCard
-            title="إجمالي الطلبات"
-            value={totalCount}
-            icon="📄"
-          />
-        </section>
-
-        {/* Search + Filters */}
-        <section className="mt-5 border border-molim bg-molim-surface p-4">
-          <label className="mb-2 block text-sm font-semibold">
-            البحث
-          </label>
-
-          <input
-            type="text"
-            value={search}
-            onChange={(event) =>
-              setSearch(event.target.value)
-            }
-            placeholder="ابحث باسم المتطوع، Molim ID أو نوع الطلب..."
-            className="h-12 w-full border border-molim bg-molim-soft px-4 text-sm outline-none transition focus:border-[#ed542f]"
-          />
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            {filters.map((filter) => (
-              <button
-                key={filter}
-                type="button"
-                onClick={() => setActiveFilter(filter)}
-                className={`cursor-pointer border px-4 py-2.5 text-sm font-medium transition ${
-                  activeFilter === filter
-                    ? "border-[#ed542f] bg-[#ed542f] text-white"
-                    : "border-molim bg-molim-surface text-molim-foreground hover:bg-molim-soft"
-                }`}
-              >
-                {filter}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        {/* Requests */}
-        <section className="mt-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-bold">
-              الطلبات
-            </h2>
-
-            <span className="text-sm text-molim-muted">
-              {filteredRequests.length} طلب
+      <PageShell>
+        <div dir="rtl" className="mx-auto max-w-5xl px-3 py-5 text-molim-foreground">
+          {/* مسار التصفح */}
+          <div className="mb-4 text-xs text-molim-muted flex items-center gap-2">
+            <span>الرئيسية</span>
+            <span>←</span>
+            <span>الموارد البشرية والإدارة</span>
+            <span>←</span>
+            <span className="font-bold text-molim-foreground">
+              طلبات الشهادات والتوصيات
             </span>
           </div>
 
-          {filteredRequests.length === 0 ? (
-            <div className="border border-dashed border-molim bg-molim-surface p-10 text-center">
-              <p className="font-semibold">
-                لا توجد طلبات
-              </p>
+          {/* العنوان */}
+          <section className="mb-6">
+            <h1 className="text-2xl font-black">
+              طلبات الشهادات والتوصيات
+            </h1>
+            <p className="mt-1 text-xs leading-6 text-molim-muted">
+              مراجعة واعتماد طلبات الشهادات وخطابات التوصية ومتابعة حالتها حتى الإصدار.
+            </p>
+          </section>
 
-              <p className="mt-2 text-sm text-molim-muted">
-                لا توجد طلبات مطابقة للبحث أو الفلتر.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredRequests.map((request) => (
+          {/* إحصائيات سريعة */}
+          <section className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <StatCard title="قيد المراجعة" value={pendingCount} icon="⏳" />
+            <StatCard title="بانتظار الاعتماد" value={approvedCount} icon="🕐" />
+            <StatCard title="صادرة" value={issuedCount} icon="✅" />
+            <StatCard title="مرفوضة" value={rejectedCount} icon="❌" />
+            <StatCard title="إجمالي الطلبات" value={totalCount} icon="📄" />
+          </section>
+
+          {/* البحث والفلاتر */}
+          <section className="mt-6 border border-molim bg-molim-surface p-4">
+            <label className="mb-2 block text-xs font-bold">
+              البحث عن طلب
+            </label>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="ابحث باسم المتطوع، المعرف (MOL-ID) أو القسم..."
+              className="h-11 w-full border border-molim bg-molim-soft px-3.5 text-xs outline-none transition focus:border-[#ed542f]"
+            />
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {FILTERS.map((filter) => (
                 <button
-                  key={request.id}
+                  key={filter}
                   type="button"
-                  onClick={() => openRequest(request)}
-                  className="block w-full cursor-pointer border border-molim bg-molim-surface p-4 text-right transition hover:border-[#ed542f] hover:shadow-sm"
+                  onClick={() => setActiveFilter(filter)}
+                  className={`cursor-pointer border px-3.5 py-1.5 text-xs font-semibold transition ${
+                    activeFilter === filter
+                      ? "border-[#ed542f] bg-[#ed542f] text-white"
+                      : "border-molim bg-molim-surface text-molim-foreground hover:bg-molim-soft"
+                  }`}
                 >
-                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div className="min-w-0">
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-bold">
-                          {request.volunteer}
-                        </h3>
-
-                        <span className="bg-molim-soft px-2 py-1 text-xs text-molim-muted">
-                          {request.molimId}
-                        </span>
-
-                        <span className="bg-orange-50 px-2 py-1 text-xs font-medium text-orange-700">
-                          {request.type}
-                        </span>
-
-                        <span
-                          className={`border px-2 py-1 text-xs font-medium ${getStatusStyle(
-                            request.status
-                          )}`}
-                        >
-                          {request.status}
-                        </span>
-                      </div>
-
-                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-molim-muted">
-                        <span>
-                          القسم: {request.department}
-                        </span>
-
-                        <span>
-                          الساعات: {request.hours}
-                        </span>
-
-                        <span>
-                          مدة التطوع: {request.volunteerPeriod}
-                        </span>
-
-                        <span>
-                          تاريخ الطلب: {request.requestDate}
-                        </span>
-                      </div>
-
-                      {request.reviewer && (
-                        <p className="mt-2 text-xs text-molim-muted">
-                          راجعه: {request.reviewer}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="shrink-0 text-sm font-semibold text-[#ed542f]">
-                      {request.status === "قيد المراجعة"
-                        ? "مراجعة الطلب ←"
-                        : "عرض التفاصيل ←"}
-                    </div>
-                  </div>
+                  {filter}
                 </button>
               ))}
             </div>
-          )}
-        </section>
-      </div>
+          </section>
 
-      {/* Request Modal */}
-      {selectedRequest && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              closeRequest();
-            }
-          }}
-        >
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto border border-molim bg-molim-surface p-5 shadow-2xl">
-
-            {/* Header */}
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm text-molim-muted">
-                  تفاصيل الطلب
-                </p>
-
-                <h2 className="mt-1 text-xl font-bold">
-                  {selectedRequest.type}
-                </h2>
-
-                <p className="mt-1 text-xs text-molim-muted">
-                  {selectedRequest.volunteer} —{" "}
-                  {selectedRequest.molimId}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={closeRequest}
-                className="cursor-pointer bg-molim-soft px-3 py-2 hover:bg-molim-soft"
-              >
-                ✕
-              </button>
+          {/* قائمة الطلبات */}
+          <section className="mt-6">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-base font-bold">الطلبات الواردة</h2>
+              <span className="text-xs text-molim-muted">
+                {loading ? "جاري التحميل..." : `${filteredRequests.length} طلب`}
+              </span>
             </div>
 
-            <div className="mt-5 space-y-4">
-
-              {/* Volunteer */}
-              <div className="grid grid-cols-2 gap-3">
-                <InfoBox
-                  title="المتطوع"
-                  value={selectedRequest.volunteer}
-                />
-
-                <InfoBox
-                  title="Molim ID"
-                  value={selectedRequest.molimId}
-                />
-
-                <InfoBox
-                  title="القسم"
-                  value={selectedRequest.department}
-                />
-
-                <InfoBox
-                  title="تاريخ الطلب"
-                  value={selectedRequest.requestDate}
-                />
-
-                <InfoBox
-                  title="الساعات المعتمدة"
-                  value={`${selectedRequest.hours} ساعة`}
-                />
-
-                <InfoBox
-                  title="مدة التطوع"
-                  value={selectedRequest.volunteerPeriod}
-                />
+            {loading ? (
+              <div className="border border-dashed border-molim bg-molim-surface p-12 text-center text-xs text-molim-muted">
+                جاري تحميل الطلبات من قاعدة البيانات...
               </div>
-
-              {/* Status */}
-              <div className="border border-molim bg-molim-soft p-4">
-                <p className="text-xs text-molim-muted">
-                  حالة الطلب
-                </p>
-
-                <p className="mt-1 font-semibold">
-                  {selectedRequest.status}
+            ) : filteredRequests.length === 0 ? (
+              <div className="border border-dashed border-molim bg-molim-surface p-10 text-center">
+                <p className="font-bold text-sm">لا توجد طلبات</p>
+                <p className="mt-1 text-xs text-molim-muted">
+                  لا توجد طلبات تطابق معايير البحث أو الفلتر المحدد.
                 </p>
               </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredRequests.map((req) => {
+                  const volunteerName = req.user
+                    ? `${req.user.first_name || ""} ${req.user.last_name || ""}`.trim()
+                    : req.user_id;
 
-              {/* Recommendation-specific information */}
-              {selectedRequest.type === "خطاب توصية" && (
-                <>
-                  <div className="border border-molim bg-molim-soft p-4">
-                    <p className="text-xs text-molim-muted">
-                      تقييم رئيس القسم
-                    </p>
+                  const typeArabic =
+                    CERTIFICATE_TYPE_TO_ARABIC[req.type] || req.type;
+                  const statusArabic =
+                    CERTIFICATE_STATUS_TO_ARABIC[req.status] || req.status;
 
-                    <p className="mt-2 text-sm leading-6 text-molim-foreground">
-                      {selectedRequest.evaluation}
+                  return (
+                    <button
+                      key={req.id}
+                      type="button"
+                      onClick={() => openRequest(req)}
+                      className="block w-full cursor-pointer border border-molim bg-molim-surface p-4 text-right transition hover:border-[#ed542f] hover:shadow-sm"
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-bold text-sm">{volunteerName}</h3>
+
+                            <span className="bg-molim-soft px-2 py-0.5 text-[11px] text-molim-muted">
+                              {req.user?.id || req.user_id}
+                            </span>
+
+                            <span className="bg-orange-50 dark:bg-orange-950/40 px-2 py-0.5 text-[11px] font-semibold text-orange-700 dark:text-orange-300">
+                              {typeArabic}
+                            </span>
+
+                            <span
+                              className={`border px-2 py-0.5 text-[11px] font-semibold ${getStatusStyle(
+                                req.status
+                              )}`}
+                            >
+                              {statusArabic}
+                            </span>
+                          </div>
+
+                          <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-molim-muted">
+                            <span>القسم: {req.department?.name || "—"}</span>
+                            <span>الساعات: {req.hours || 0}</span>
+                            <span>مدة التطوع: {req.volunteer_period || "—"}</span>
+                            <span>تاريخ الطلب: {req.request_date || "—"}</span>
+                          </div>
+
+                          {req.reviewer && (
+                            <p className="mt-1.5 text-xs text-molim-muted">
+                              راجعه: {req.reviewer.first_name} {req.reviewer.last_name || ""}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="shrink-0 text-xs font-bold text-[#ed542f]">
+                          {req.status === "in_review"
+                            ? "مراجعة واعتماد الطلب ←"
+                            : "عرض التفاصيل ←"}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* نافذة المراجعة والاعتماد (Modal) */}
+          {selectedRequest && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) closeRequest();
+              }}
+            >
+              <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto border border-molim bg-molim-surface p-5 shadow-2xl">
+                {/* رأس النافذة */}
+                <div className="flex items-start justify-between gap-3 border-b border-molim pb-3">
+                  <div>
+                    <p className="text-xs text-molim-muted">تفاصيل وإجراءات الطلب</p>
+                    <h2 className="mt-1 text-lg font-bold">
+                      {CERTIFICATE_TYPE_TO_ARABIC[selectedRequest.type] ||
+                        selectedRequest.type}
+                    </h2>
+                    <p className="mt-0.5 text-xs text-molim-muted">
+                      {selectedRequest.user
+                        ? `${selectedRequest.user.first_name} ${selectedRequest.user.last_name || ""}`
+                        : selectedRequest.user_id}{" "}
+                      — {selectedRequest.user?.id || selectedRequest.user_id}
                     </p>
                   </div>
 
-                  <InfoBox
-                    title="رئيس القسم"
-                    value={selectedRequest.departmentHead}
-                  />
-                </>
-              )}
-
-              {/* Certificate information */}
-              {selectedRequest.type !== "خطاب توصية" && (
-                <div className="border border-molim bg-molim-soft p-4">
-                  <p className="text-xs text-molim-muted">
-                    بيانات الاستحقاق
-                  </p>
-
-                  <p className="mt-2 text-sm leading-6 text-molim-foreground">
-                    يتم التحقق من نوع الشهادة والساعات
-                    المعتمدة ومدة المشاركة قبل الإصدار.
-                  </p>
+                  <button
+                    type="button"
+                    onClick={closeRequest}
+                    className="cursor-pointer bg-molim-soft px-3 py-1 text-sm font-bold hover:bg-molim-soft"
+                  >
+                    ✕
+                  </button>
                 </div>
-              )}
 
-              {/* Reviewer */}
-              {selectedRequest.reviewer && (
-                <div className="border border-molim bg-molim-surface p-4">
-                  <p className="text-xs text-molim-muted">
-                    آخر مراجع
-                  </p>
+                {/* رسالة النتيجة */}
+                {feedback && (
+                  <div
+                    className={`mt-4 border p-3 text-xs font-semibold ${
+                      feedback.type === "success"
+                        ? "border-green-300 bg-green-50 text-green-800 dark:bg-green-950/50 dark:text-green-300"
+                        : "border-red-300 bg-red-50 text-red-800 dark:bg-red-950/50 dark:text-red-300"
+                    }`}
+                  >
+                    {feedback.text}
+                  </div>
+                )}
 
-                  <p className="mt-1 font-bold">
-                    {selectedRequest.reviewer}
-                  </p>
-
-                  {selectedRequest.reviewedAt && (
-                    <p className="mt-1 text-xs text-molim-muted">
-                      بتاريخ {selectedRequest.reviewedAt}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Notes */}
-              {selectedRequest.notes && (
-                <div className="border border-molim bg-molim-soft p-4">
-                  <p className="text-xs text-molim-muted">
-                    الملاحظات الحالية
-                  </p>
-
-                  <p className="mt-2 text-sm leading-6 text-molim-foreground">
-                    {selectedRequest.notes}
-                  </p>
-                </div>
-              )}
-
-              {/* Review */}
-              {selectedRequest.status === "قيد المراجعة" && (
-                <>
-                  <div>
-                    <label
-                      htmlFor="certificateReviewNotes"
-                      className="mb-2 block text-sm font-semibold"
-                    >
-                      ملاحظات المراجعة
-                    </label>
-
-                    <textarea
-                      id="certificateReviewNotes"
-                      rows={4}
-                      value={reviewNotes}
-                      onChange={(event) =>
-                        setReviewNotes(event.target.value)
+                <div className="mt-4 space-y-3.5">
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <InfoBox
+                      title="المتطوع"
+                      value={
+                        selectedRequest.user
+                          ? `${selectedRequest.user.first_name} ${selectedRequest.user.last_name || ""}`
+                          : selectedRequest.user_id
                       }
-                      placeholder="اكتب ملاحظات المراجعة..."
-                      className="w-full resize-none border border-molim bg-molim-soft p-4 text-sm outline-none transition focus:border-[#ed542f]"
+                    />
+                    <InfoBox
+                      title="المعرف"
+                      value={selectedRequest.user?.id || selectedRequest.user_id}
+                    />
+                    <InfoBox
+                      title="القسم"
+                      value={selectedRequest.department?.name || "—"}
+                    />
+                    <InfoBox
+                      title="تاريخ الطلب"
+                      value={selectedRequest.request_date || "—"}
+                    />
+                    <InfoBox
+                      title="الساعات المعتمدة"
+                      value={`${selectedRequest.hours || 0} ساعة`}
+                    />
+                    <InfoBox
+                      title="مدة التطوع"
+                      value={selectedRequest.volunteer_period || "—"}
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateRequestStatus("بانتظار الاعتماد")
-                      }
-                      className="h-12 cursor-pointer bg-green-600 font-semibold text-white hover:bg-green-700"
-                    >
-                      ✅ قبول الطلب
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateRequestStatus("مرفوضة")
-                      }
-                      className="h-12 cursor-pointer bg-red-600 font-semibold text-white hover:bg-red-700"
-                    >
-                      ❌ رفض الطلب
-                    </button>
-
+                  <div className="border border-molim bg-molim-soft p-3">
+                    <p className="text-[11px] text-molim-muted">حالة الطلب الحالية</p>
+                    <p className="mt-1 font-bold text-sm">
+                      {CERTIFICATE_STATUS_TO_ARABIC[selectedRequest.status] ||
+                        selectedRequest.status}
+                    </p>
                   </div>
-                </>
-              )}
 
-              {/* HR can issue approved request */}
-              {selectedRequest.status === "بانتظار الاعتماد" && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    updateRequestStatus("صادرة")
-                  }
-                  className="h-12 w-full cursor-pointer bg-[#ed542f] font-semibold text-white hover:bg-[#d94725]"
-                >
-                  🎓 إصدار الشهادة / الخطاب
-                </button>
-              )}
+                  {selectedRequest.notes && (
+                    <div className="border border-molim bg-molim-soft p-3">
+                      <p className="text-[11px] text-molim-muted">ملاحظات سابقة</p>
+                      <p className="mt-1 text-xs leading-5">
+                        {selectedRequest.notes}
+                      </p>
+                    </div>
+                  )}
 
-              <button
-                type="button"
-                onClick={closeRequest}
-                className="h-12 w-full cursor-pointer border border-molim bg-molim-surface font-semibold text-molim-foreground hover:bg-molim-soft"
-              >
-                إغلاق
-              </button>
+                  {/* حقل الملاحظات للإدارة */}
+                  <div>
+                    <label
+                      htmlFor="reviewNotesField"
+                      className="mb-1.5 block text-xs font-bold"
+                    >
+                      ملاحظات وتوجيهات المراجعة
+                    </label>
+                    <textarea
+                      id="reviewNotesField"
+                      rows={3}
+                      value={reviewNotes}
+                      onChange={(e) => setReviewNotes(e.target.value)}
+                      placeholder="اكتب ملاحظات الاعتماد أو أسباب الرفض إن وجدت..."
+                      className="w-full resize-none border border-molim bg-molim-soft p-3 text-xs outline-none transition focus:border-[#ed542f]"
+                    />
+                  </div>
 
+                  {/* أزرار الإجراءات حسب حالة الطلب */}
+                  {selectedRequest.status === "in_review" && (
+                    <div className="grid grid-cols-2 gap-2.5 pt-2">
+                      <button
+                        type="button"
+                        disabled={actionLoading}
+                        onClick={() => handleUpdateStatus("pending_approval")}
+                        className="h-11 cursor-pointer bg-green-600 text-xs font-bold text-white transition hover:bg-green-700 disabled:opacity-50"
+                      >
+                        {actionLoading ? "جاري الحفظ..." : "✅ قبول الطلب (بانتظار الاعتماد)"}
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={actionLoading}
+                        onClick={() => handleUpdateStatus("rejected")}
+                        className="h-11 cursor-pointer bg-red-600 text-xs font-bold text-white transition hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {actionLoading ? "جاري الحفظ..." : "❌ رفض الطلب"}
+                      </button>
+                    </div>
+                  )}
+
+                  {selectedRequest.status === "pending_approval" && (
+                    <div className="space-y-2 pt-2">
+                      <button
+                        type="button"
+                        disabled={actionLoading}
+                        onClick={() => handleUpdateStatus("issued")}
+                        className="h-11 w-full cursor-pointer bg-[#ed542f] text-xs font-bold text-white transition hover:bg-[#d94725] disabled:opacity-50"
+                      >
+                        {actionLoading
+                          ? "جاري الإصدار..."
+                          : "🎓 اعتماد وإصدار الشهادة / الخطاب رسمياً"}
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={actionLoading}
+                        onClick={() => handleUpdateStatus("rejected")}
+                        className="h-10 w-full cursor-pointer border border-red-300 text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+                      >
+                        إلغاء ورفض الطلب
+                      </button>
+                    </div>
+                  )}
+
+                  {selectedRequest.status === "issued" && (
+                    <div className="border border-green-200 bg-green-50 p-3 text-center text-xs font-bold text-green-700 dark:bg-green-950/40 dark:text-green-300">
+                      ✓ تم إصدار هذه الشهادة / الخطاب بنجاح في تاريخ {selectedRequest.issued_at || "—"}.
+                    </div>
+                  )}
+
+                  {selectedRequest.status === "rejected" && (
+                    <div className="border border-red-200 bg-red-50 p-3 text-center text-xs font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">
+                      تم رفض هذا الطلب.
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={closeRequest}
+                    className="h-10 w-full cursor-pointer border border-molim bg-molim-surface text-xs font-bold text-molim-foreground hover:bg-molim-soft"
+                  >
+                    إغلاق
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
-      )}
-    </main>
+      </PageShell>
     </RoleGuard>
   );
 }
@@ -678,40 +544,23 @@ function StatCard({
   icon: string;
 }) {
   return (
-    <div className="border border-molim bg-molim-surface p-4">
-      <div className="flex items-start justify-between gap-3">
+    <div className="border border-molim bg-molim-surface p-3.5">
+      <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-xs leading-5 text-molim-muted">
-            {title}
-          </p>
-
-          <p className="mt-2 text-2xl font-bold">
-            {value}
-          </p>
+          <p className="text-[11px] leading-4 text-molim-muted">{title}</p>
+          <p className="mt-1 text-2xl font-black">{value}</p>
         </div>
-
-        <div className="bg-molim-soft px-2.5 py-2">
-          {icon}
-        </div>
+        <div className="bg-molim-soft px-2 py-1.5 text-base">{icon}</div>
       </div>
     </div>
   );
 }
 
-function InfoBox({
-  title,
-  value,
-}: {
-  title: string;
-  value: string;
-}) {
+function InfoBox({ title, value }: { title: string; value: string }) {
   return (
-    <div className="border border-molim p-4">
-      <p className="text-xs text-molim-muted">
-        {title}
-      </p>
-
-      <p className="mt-1 font-semibold">
+    <div className="border border-molim bg-molim-soft/50 p-2.5">
+      <p className="text-[10px] text-molim-muted">{title}</p>
+      <p className="mt-0.5 text-xs font-bold text-molim-foreground truncate">
         {value}
       </p>
     </div>

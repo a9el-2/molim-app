@@ -297,18 +297,23 @@ export default function Home() {
             </p>
 
             <h2 className="mt-1 text-lg font-black">
-              تسجيل مهمة جديدة
+              المهام والشهادات
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-molim-muted">
-              سجّل المهمة التي أنجزتها حتى تدخل مرحلة المراجعة
-              واحتساب الساعات.
+              سجّل مهامك المنجزة، أو استعرض شهاداتك المستحقة وقدّم طلباتك.
             </p>
 
-            <div className="mt-4">
+            <div className="mt-4 flex flex-wrap gap-2">
               <Link href="/add-task">
                 <Button variant="primary">
                   إضافة مهمة
+                </Button>
+              </Link>
+
+              <Link href="/certificates">
+                <Button variant="outline">
+                  الشهادات والخطابات
                 </Button>
               </Link>
             </div>
@@ -342,6 +347,12 @@ export default function Home() {
                   مراجعة الساعات
                 </Button>
               </Link>
+
+              <Link href="/certificates">
+                <Button variant="outline">
+                  الشهادات
+                </Button>
+              </Link>
             </div>
           </Card>
         )}
@@ -357,14 +368,19 @@ export default function Home() {
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-molim-muted">
-              يمكنك متابعة المتطوعين وإضافة الأعضاء ومراجعة
-              الساعات مباشرة.
+              يمكنك متابعة المتطوعين ومراجعة الساعات وطلبات الشهادات.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
               <Link href="/volunteers">
                 <Button variant="secondary">
                   المتطوعون
+                </Button>
+              </Link>
+
+              <Link href="/certificate-requests">
+                <Button variant="primary">
+                  طلبات الشهادات
                 </Button>
               </Link>
 
@@ -388,14 +404,19 @@ export default function Home() {
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-molim-muted">
-              يمكنك متابعة المتطوعين ومراجعة المهام والساعات
-              من القائمة الجانبية.
+              يمكنك متابعة المتطوعين ومراجعة المهام والساعات وطلبات الشهادات.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
               <Link href="/volunteers">
                 <Button variant="secondary">
                   المتطوعون
+                </Button>
+              </Link>
+
+              <Link href="/certificate-requests">
+                <Button variant="primary">
+                  طلبات الشهادات
                 </Button>
               </Link>
 
@@ -419,11 +440,16 @@ export default function Home() {
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-molim-muted">
-              الأدوار والصلاحيات الإدارية وسجل العمليات متاحة
-              لك مباشرة.
+              الأدوار والصلاحيات الإدارية وسجل العمليات وطلبات الشهادات متاحة لك مباشرة.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
+              <Link href="/certificate-requests">
+                <Button variant="primary">
+                  طلبات الشهادات
+                </Button>
+              </Link>
+
               <Link href="/roles">
                 <Button variant="secondary">
                   الأدوار والصلاحيات

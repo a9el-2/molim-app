@@ -446,3 +446,191 @@ export async function updateHours(
   return { ok: true, hour: data.hour };
 }
 
+export type CertificateRequestType =
+  | "volunteer"
+  | "participation"
+  | "expertise"
+  | "recommendation_letter";
+
+export type CertificateRequestStatus =
+  | "in_review"
+  | "pending_approval"
+  | "issued"
+  | "rejected";
+
+export const CERTIFICATE_TYPE_TO_ARABIC: Record<string, string> = {
+  volunteer: "شهادة التطوع",
+  participation: "شهادة المشاركة",
+  expertise: "شهادة الخبرة",
+  recommendation_letter: "خطاب توصية",
+};
+
+export const CERTIFICATE_TYPE_FROM_ARABIC: Record<string, CertificateRequestType> = {
+  "شهادة التطوع": "volunteer",
+  "شهادة المشاركة": "participation",
+  "شهادة الخبرة": "expertise",
+  "خطاب توصية": "recommendation_letter",
+};
+
+export const CERTIFICATE_STATUS_TO_ARABIC: Record<string, string> = {
+  in_review: "قيد المراجعة",
+  pending_approval: "بانتظار الاعتماد",
+  issued: "صادرة",
+  rejected: "مرفوضة",
+};
+
+export const CERTIFICATE_STATUS_FROM_ARABIC: Record<string, CertificateRequestStatus> = {
+  "قيد المراجعة": "in_review",
+  "بانتظار الاعتماد": "pending_approval",
+  "صادرة": "issued",
+  "مرفوضة": "rejected",
+};
+
+export type CertificateRequestDTO = {
+  id: string;
+  user_id: string;
+  type: CertificateRequestType;
+  status: CertificateRequestStatus;
+  hours: number;
+  volunteer_period: string;
+  department_id?: string | null;
+  department_head_id?: string | null;
+  evaluation?: string | null;
+  notes?: string | null;
+  request_date: string;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  issued_at?: string | null;
+  issue_file_url?: string | null;
+  created_at: string;
+  user?: {
+    id: string;
+    first_name: string;
+    last_name: string | null;
+    department_id?: string | null;
+  } | null;
+  department?: {
+    id: string;
+    name: string;
+  } | null;
+  reviewer?: {
+    id: string;
+    first_name: string;
+    last_name: string | null;
+  } | null;
+};
+
+export async function fetchCertificateRequests(options?: {
+  mine?: boolean;
+}): Promise<{ ok: boolean; requests: CertificateRequestDTO[]; error?: string }> {
+  const query = options?.mine ? "?mine=true" : "";
+  const response = await fetch(`/api/certificate-requests${query}`, {
+    headers: authHeaders(),
+  }).catch(() => null);
+
+  if (!response) {
+    return {
+      ok: false,
+      requests: [],
+      error: "تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت.",
+    };
+  }
+
+  const data = await parseJson<{
+    ok?: boolean;
+    requests?: CertificateRequestDTO[];
+    error?: string;
+  }>(response);
+
+  if (!response.ok || !data?.ok) {
+    return {
+      ok: false,
+      requests: [],
+      error: data?.error ?? "تعذر جلب طلبات الشهادات.",
+    };
+  }
+
+  return { ok: true, requests: data.requests ?? [] };
+}
+
+export async function submitCertificateRequest(payload: {
+  type: CertificateRequestType | string;
+  notes?: string;
+  evaluation?: string;
+}): Promise<{ ok: boolean; request?: CertificateRequestDTO; error?: string }> {
+  const backendType =
+    CERTIFICATE_TYPE_FROM_ARABIC[payload.type] ?? payload.type;
+
+  const response = await fetch("/api/certificate-requests", {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ ...payload, type: backendType }),
+  }).catch(() => null);
+
+  if (!response) {
+    return {
+      ok: false,
+      error: "تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت.",
+    };
+  }
+
+  const data = await parseJson<{
+    ok?: boolean;
+    request?: CertificateRequestDTO;
+    error?: string;
+  }>(response);
+
+  if (!response.ok || !data?.ok) {
+    return {
+      ok: false,
+      error: data?.error ?? "تعذر إرسال الطلب.",
+    };
+  }
+
+  return { ok: true, request: data.request };
+}
+
+export async function updateCertificateRequest(
+  id: string,
+  payload: {
+    status: CertificateRequestStatus | string;
+    notes?: string;
+    evaluation?: string;
+    issueFileUrl?: string;
+  }
+): Promise<{ ok: boolean; request?: CertificateRequestDTO; error?: string }> {
+  const backendStatus =
+    CERTIFICATE_STATUS_FROM_ARABIC[payload.status] ?? payload.status;
+
+  const response = await fetch(
+    `/api/certificate-requests/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ ...payload, status: backendStatus }),
+    }
+  ).catch(() => null);
+
+  if (!response) {
+    return {
+      ok: false,
+      error: "تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت.",
+    };
+  }
+
+  const data = await parseJson<{
+    ok?: boolean;
+    request?: CertificateRequestDTO;
+    error?: string;
+  }>(response);
+
+  if (!response.ok || !data?.ok) {
+    return {
+      ok: false,
+      error: data?.error ?? "تعذر تحديث حالة الطلب.",
+    };
+  }
+
+  return { ok: true, request: data.request };
+}
+

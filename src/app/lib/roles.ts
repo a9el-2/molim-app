@@ -80,11 +80,9 @@ export const DISABLED_ROUTES: readonly string[] = [
   "/reports",
   "/agreements",
   "/announcements",
-  "/certificate-requests",
   "/notifications",
   "/departments",
   "/department",
-  "/certificates",
   "/agreement",
   "/settings",
   "/hr",
@@ -103,11 +101,13 @@ export const ROUTE_ACCESS_RULES: Record<string, UserRole[]> = {
   // صفحات الموارد البشرية وإدارة الأعضاء
   "/volunteers": ["HR", "ADMIN", "SUPER_ADMIN"],
   "/invitations": ["HR", "ADMIN", "SUPER_ADMIN"],
+  "/certificate-requests": ["HR", "ADMIN", "SUPER_ADMIN"],
 
   // صفحات مراجعة الساعات والمهام
   "/hours-review": ["DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
 
   // صفحات مشتركة أو مخصصة
+  "/certificates": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
   "/add-task": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
   "/tasks": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
   "/hours": ["VOLUNTEER", "DEPARTMENT_HEAD", "HR", "ADMIN", "SUPER_ADMIN"],
