@@ -421,6 +421,14 @@ export default function CertificateRequestsPage() {
                       title="مدة التطوع"
                       value={selectedRequest.volunteer_period || "—"}
                     />
+                    {selectedRequest.type === "participation" && (
+                      <div className="col-span-2">
+                        <InfoBox
+                          title="شرط الاستحقاق للشهادة"
+                          value="مستوفٍ لشرط إكمال مهمة واحدة على الأقل بنجاح ✓"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="border border-molim bg-molim-soft p-3">
