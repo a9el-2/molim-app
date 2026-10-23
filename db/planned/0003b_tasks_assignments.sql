@@ -537,6 +537,12 @@ BEGIN
   WHERE id = p_assignment_id
   FOR UPDATE;
 
+  -- التحقق من وجود السجل وتطابقه مع المهمة بعد القفل (القراءة الأولى كانت بدون قفل)
+  IF NOT FOUND OR v_assignment.task_id IS DISTINCT FROM v_task_id THEN
+    RAISE EXCEPTION 'ASSIGNMENT_NOT_FOUND: سجل التكليف غير موجود أو تغيّر أثناء المعالجة'
+      USING ERRCODE = 'P0002';
+  END IF;
+
   -- 4. التحقق من أن حالة السجل هي submitted فقط
   IF v_assignment.status <> 'submitted' THEN
     RAISE EXCEPTION 'NOT_SUBMITTED: سجل التكليف ليس بحالة التسليم (الحالة الحالية: %)', v_assignment.status
