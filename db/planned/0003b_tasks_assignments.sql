@@ -352,7 +352,7 @@ BEGIN
 
     -- ج) مهمة عامة لجميع الأقسام (all_departments): متاحة لأي عضو نشط
     IF v_task.target_type::text = 'all_departments' THEN
-      IF lower(coalesce(v_user.status, '')) <> 'active' THEN
+      IF lower(coalesce(v_user.status::text, '')) <> 'active' THEN
         RAISE EXCEPTION 'NOT_ELIGIBLE: العضو غير نشط للمشاركة في المهام العامة'
           USING ERRCODE = 'P0001';
       END IF;
@@ -360,7 +360,7 @@ BEGIN
 
     -- د) مهمة موجهة للإدارة العليا (upper_management): محصورة بأدوار الإدارة العليا النشطة (ADMIN و SUPER_ADMIN)
     IF v_task.target_type::text = 'upper_management' THEN
-      IF v_user.role NOT IN ('ADMIN', 'SUPER_ADMIN') OR lower(coalesce(v_user.status, '')) <> 'active' THEN
+      IF v_user.role::text NOT IN ('ADMIN', 'SUPER_ADMIN') OR lower(coalesce(v_user.status::text, '')) <> 'active' THEN
         RAISE EXCEPTION 'NOT_ELIGIBLE: هذه المهمة موجهة للإدارة العليا فقط'
           USING ERRCODE = 'P0001';
       END IF;
@@ -496,6 +496,7 @@ SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp
 AS $$
 DECLARE
+  v_task_id            uuid;
   v_assignment         public.task_assignments%ROWTYPE;
   v_task               public.tasks%ROWTYPE;
   v_result_assignment  public.task_assignments%ROWTYPE;
@@ -508,21 +509,21 @@ BEGIN
   -- تنظيف الملاحظات
   v_clean_notes := nullif(btrim(coalesce(p_notes, '')), '');
 
-  -- 1. قفل سجل التكليف FOR UPDATE
-  SELECT * INTO v_assignment
+  -- توحيد ترتيب الأقفال ليطابق claim_task (المهمة أولاً ثم سجل التكليف) منعاً لحدوث التعارض المتبادل (Deadlock)
+  -- 1. استعلام معرّف المهمة المرتبطة بالتكليف أولاً لتحديد المهمة المراد قفلها
+  SELECT task_id INTO v_task_id
   FROM public.task_assignments
-  WHERE id = p_assignment_id
-  FOR UPDATE;
+  WHERE id = p_assignment_id;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'ASSIGNMENT_NOT_FOUND: سجل التكليف غير موجود'
       USING ERRCODE = 'P0002';
   END IF;
 
-  -- 2. قفل صف المهمة FOR UPDATE
+  -- 2. قفل صف المهمة FOR UPDATE أولاً
   SELECT * INTO v_task
   FROM public.tasks
-  WHERE id = v_assignment.task_id
+  WHERE id = v_task_id
   FOR UPDATE;
 
   IF NOT FOUND THEN
@@ -530,7 +531,13 @@ BEGIN
       USING ERRCODE = 'P0002';
   END IF;
 
-  -- 3. التحقق من أن حالة السجل هي submitted فقط
+  -- 3. قفل سجل التكليف FOR UPDATE ثانياً
+  SELECT * INTO v_assignment
+  FROM public.task_assignments
+  WHERE id = p_assignment_id
+  FOR UPDATE;
+
+  -- 4. التحقق من أن حالة السجل هي submitted فقط
   IF v_assignment.status <> 'submitted' THEN
     RAISE EXCEPTION 'NOT_SUBMITTED: سجل التكليف ليس بحالة التسليم (الحالة الحالية: %)', v_assignment.status
       USING ERRCODE = 'P0001';
