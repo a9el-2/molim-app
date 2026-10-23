@@ -6,7 +6,7 @@
 --            والأولوية، والعدد المطلوب للمنفذين، وحقول الإلغاء، دون حذف أو تعديل أي عمود قائم.
 --         2. إنشاء جدول تكليفات المهام (task_assignments) لتنظيم تسليم واستلام ومراجعة المهام
 --            بين العضو والإدارة بدقة وذرّية كاملة.
---         3. إنشاء جدول أحداث المهام (task_events) كسجل تتبعي للإضافة فقط (Append-Only).
+--         3. إنشاء جدول أحداث المهام (task_events) كسجل تتبعي للأحداث (ملاحظة: منع التعديل والحذف UPDATE/DELETE غير مفعّل بعد).
 --         4. تفعيل سياسات الأمان RLS وحصر الصلاحيات بالخادم (service_role).
 --         5. توفير دالتي القبول (claim_task) والمراجعة (review_task_assignment) لتنفيذ
 --            العمليات المعقدة ذرّياً داخل قاعدة البيانات مع تسجيل سجلات التدقيق (audit_logs).
@@ -201,7 +201,7 @@ COMMENT ON TABLE public.task_assignments IS
   'جدول تكليفات ومشاركات الأعضاء في المهام وحالة كل تكليف وساعاته المعتمدة.';
 
 -- -----------------------------------------------------------------------------
--- 1.5 جدول سجل أحداث المهام: task_events (Append-Only)
+-- 1.5 جدول سجل أحداث المهام: task_events (منع التعديل والحذف غير مفعّل بعد)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.task_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -214,7 +214,7 @@ CREATE TABLE IF NOT EXISTS public.task_events (
 );
 
 COMMENT ON TABLE public.task_events IS
-  'سجل أحداث زمني تاريخي لكل العمليات والتغييرات التي تطرأ على المهمة وتكليفاتها (للإضافة فقط).';
+  'سجل أحداث زمني تاريخي لكل العمليات والتغييرات التي تطرأ على المهمة وتكليفاتها (منع التعديل والحذف غير مفعّل بعد).';
 
 -- -----------------------------------------------------------------------------
 -- 1.6 الفهارس (Indexes)
@@ -259,7 +259,7 @@ CREATE OR REPLACE FUNCTION public.claim_task(
 RETURNS public.task_assignments
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_catalog, pg_temp
+SET search_path = pg_catalog, public, pg_temp
 AS $$
 DECLARE
   -- الحد الأقصى للمهام النشطة للعضو الواحد في نفس الوقت
@@ -272,6 +272,9 @@ DECLARE
   v_task_active_count  integer;
   v_user_active_count  integer;
 BEGIN
+  -- قفل استشاري على مستوى المعاملة لحساب المستخدم لضمان سلامة حد الـ 3 مهام النشطة ومنع التزاحم والتسابق بين عمليتي قبول متزامنتين لنفس العضو على مهمتين مختلفتين
+  PERFORM pg_advisory_xact_lock(hashtext(p_user_id));
+
   -- 1. قفل صف المهمة في جدول tasks لمنع التسابق
   SELECT * INTO v_task
   FROM public.tasks
@@ -314,23 +317,23 @@ BEGIN
   -- إذا كان للعضو سجل عرض (offered) موجه له، فهو مؤهل مباشرة للقبول.
   IF v_assignment.id IS NULL THEN
     -- فحص المهمة الشخصية (self): محصورة بالمنشئ فقط
-    IF v_task.target_type = 'self' AND v_task.created_by <> p_user_id AND coalesce(v_task.target_user_id, '') <> p_user_id THEN
+    IF v_task.target_type::text = 'self' AND v_task.created_by <> p_user_id AND coalesce(v_task.target_user_id, '') <> p_user_id THEN
       RAISE EXCEPTION 'NOT_ELIGIBLE: هذه المهمة شخصية وخاصة بعضو آخر'
         USING ERRCODE = 'P0001';
     END IF;
 
     -- فحص المهمة الموجهة لشخص بعينه (person)
-    IF v_task.target_type = 'person' AND v_task.target_user_id IS NOT NULL AND v_task.target_user_id <> p_user_id THEN
+    IF v_task.target_type::text = 'person' AND v_task.target_user_id IS NOT NULL AND v_task.target_user_id <> p_user_id THEN
       RAISE EXCEPTION 'NOT_ELIGIBLE: هذه المهمة موجهة لعضو محدد آخر'
         USING ERRCODE = 'P0001';
     END IF;
 
     -- فحص توافق القسم (حسب طريقة تخزين الأقسام المكتشفة في النظام):
-    -- أ) مهمة موجهة لقسم واحد (department_id)
-    IF v_task.target_type = 'department' THEN
+    -- أ) مهمة موجهة لقسم واحد (department)
+    IF v_task.target_type::text = 'department' THEN
       IF v_user.department_id IS NULL OR (
-        v_user.department_id <> coalesce(v_task.department_id, '')
-        AND NOT (v_task.target_department_ids IS NOT NULL AND v_user.department_id = ANY(v_task.target_department_ids))
+        (v_task.department_id IS NULL OR v_user.department_id <> v_task.department_id)
+        AND NOT (v_task.target_department_ids IS NOT NULL AND v_task.target_department_ids @> to_jsonb(v_user.department_id::text))
       ) THEN
         RAISE EXCEPTION 'NOT_ELIGIBLE: العضو لا ينتمي لقسم هذه المهمة'
           USING ERRCODE = 'P0001';
@@ -338,11 +341,27 @@ BEGIN
     END IF;
 
     -- ب) مهمة موجهة لعدة أقسام (multiple_departments)
-    IF v_task.target_type = 'multiple_departments' THEN
+    IF v_task.target_type::text = 'multiple_departments' THEN
       IF v_user.department_id IS NULL OR NOT (
-        v_task.target_department_ids IS NOT NULL AND v_user.department_id = ANY(v_task.target_department_ids)
+        v_task.target_department_ids IS NOT NULL AND v_task.target_department_ids @> to_jsonb(v_user.department_id::text)
       ) THEN
         RAISE EXCEPTION 'NOT_ELIGIBLE: العضو لا ينتمي لأي من الأقسام المحددة لهذه المهمة'
+          USING ERRCODE = 'P0001';
+      END IF;
+    END IF;
+
+    -- ج) مهمة عامة لجميع الأقسام (all_departments): متاحة لأي عضو نشط
+    IF v_task.target_type::text = 'all_departments' THEN
+      IF lower(coalesce(v_user.status, '')) <> 'active' THEN
+        RAISE EXCEPTION 'NOT_ELIGIBLE: العضو غير نشط للمشاركة في المهام العامة'
+          USING ERRCODE = 'P0001';
+      END IF;
+    END IF;
+
+    -- د) مهمة موجهة للإدارة العليا (upper_management): محصورة بأدوار الإدارة العليا النشطة (ADMIN و SUPER_ADMIN)
+    IF v_task.target_type::text = 'upper_management' THEN
+      IF v_user.role NOT IN ('ADMIN', 'SUPER_ADMIN') OR lower(coalesce(v_user.status, '')) <> 'active' THEN
+        RAISE EXCEPTION 'NOT_ELIGIBLE: هذه المهمة موجهة للإدارة العليا فقط'
           USING ERRCODE = 'P0001';
       END IF;
     END IF;
@@ -474,7 +493,7 @@ CREATE OR REPLACE FUNCTION public.review_task_assignment(
 RETURNS public.task_assignments
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_catalog, pg_temp
+SET search_path = pg_catalog, public, pg_temp
 AS $$
 DECLARE
   v_assignment         public.task_assignments%ROWTYPE;
@@ -484,7 +503,7 @@ DECLARE
   v_approved_count     integer;
   v_clean_notes        text;
   v_event_type         text;
-  v_effective_dept_id  text;
+  v_effective_dept_id  uuid;
 BEGIN
   -- تنظيف الملاحظات
   v_clean_notes := nullif(btrim(coalesce(p_notes, '')), '');
@@ -596,7 +615,7 @@ BEGIN
       v_assignment.task_id,
       p_approved_hours,
       p_approved_hours,
-      coalesce(v_assignment.submitted_at::date, CURRENT_DATE),
+      coalesce((v_assignment.submitted_at AT TIME ZONE 'Asia/Riyadh')::date, (now() AT TIME ZONE 'Asia/Riyadh')::date),
       '[إنجاز مهمة: ' || v_task.title || '] معتمدة',
       'approved',
       (p_reviewer_id = v_assignment.user_id AND coalesce(p_allow_self, false)),
