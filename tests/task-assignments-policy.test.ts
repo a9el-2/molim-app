@@ -13,6 +13,7 @@ import {
   mapReviewError,
   decideAssignmentAction,
   decideReviewPermission,
+  decideTaskReassignment,
 } from "../src/app/lib/task-assignments-policy.ts";
 
 // ══════════════════════════════════════════════════════════════
@@ -815,64 +816,251 @@ test("decideReviewPermission: VOLUNTEER لا يملك صلاحية المراج�
   const vol = { id: "u-vol", role: "VOLUNTEER" as const, departmentId: "dept-1" };
   const owner = { id: "u-other", role: "VOLUNTEER" as const, departmentId: "dept-1" };
 
-  const res = decideReviewPermission(vol, owner, "dept-1");
+  const res = decideReviewPermission(vol, owner);
   assert.equal(res.allowed, false);
   if (!res.allowed) assert.equal(res.reason, "role_not_allowed");
 });
 
-test("decideReviewPermission: المراجعة الذاتية مرفوضة إلا للسوبر أدمن الوحيد", () => {
+test("decideReviewPermission: المراجعة الذاتية مرفوضة إلا للسوبر أدمن الوحيد النشط", () => {
   const deptHead = { id: "u-head", role: "DEPARTMENT_HEAD" as const, departmentId: "dept-1" };
   const hr = { id: "u-hr", role: "HR" as const, departmentId: null };
   const admin = { id: "u-admin", role: "ADMIN" as const, departmentId: null };
   const superAdmin = { id: "u-super", role: "SUPER_ADMIN" as const, departmentId: null };
 
   // غير مسموح للمراجع بمراجعة نفسه
-  assert.equal(decideReviewPermission(deptHead, { id: "u-head", role: "DEPARTMENT_HEAD", departmentId: "dept-1" }, "dept-1").allowed, false);
-  assert.equal(decideReviewPermission(hr, { id: "u-hr", role: "HR", departmentId: null }, null).allowed, false);
-  assert.equal(decideReviewPermission(admin, { id: "u-admin", role: "ADMIN", departmentId: null }, null).allowed, false);
+  assert.equal(decideReviewPermission(deptHead, { id: "u-head", role: "DEPARTMENT_HEAD", departmentId: "dept-1" }).allowed, false);
+  assert.equal(decideReviewPermission(hr, { id: "u-hr", role: "HR", departmentId: null }).allowed, false);
+  assert.equal(decideReviewPermission(admin, { id: "u-admin", role: "ADMIN", departmentId: null }).allowed, false);
 
   // سوبر أدمن بوجود سوبر أدمن آخر نشط (soleActiveSuperAdmin=false)
-  const resSuperNotSole = decideReviewPermission(superAdmin, { id: "u-super", role: "SUPER_ADMIN", departmentId: null }, null, false);
+  const resSuperNotSole = decideReviewPermission(superAdmin, { id: "u-super", role: "SUPER_ADMIN", departmentId: null }, false);
   assert.equal(resSuperNotSole.allowed, false);
   if (!resSuperNotSole.allowed) assert.equal(resSuperNotSole.reason, "self_review");
 
   // سوبر أدمن هو الوحيد النشط (soleActiveSuperAdmin=true) -> مسموح
-  const resSuperSole = decideReviewPermission(superAdmin, { id: "u-super", role: "SUPER_ADMIN", departmentId: null }, null, true);
+  const resSuperSole = decideReviewPermission(superAdmin, { id: "u-super", role: "SUPER_ADMIN", departmentId: null }, true);
   assert.equal(resSuperSole.allowed, true);
 });
 
-test("decideReviewPermission: DEPARTMENT_HEAD يراجع تكليفات قسمه فقط (تطابق قسم العضو أو المهمة)", () => {
-  const head = { id: "u-head", role: "DEPARTMENT_HEAD" as const, departmentId: "dept-tech" };
-  const memberSameDept = { id: "u-mem1", role: "VOLUNTEER" as const, departmentId: "dept-tech" };
-  const memberOtherDept = { id: "u-mem2", role: "VOLUNTEER" as const, departmentId: "dept-media" };
+test("decideReviewPermission: صاحب التكليف VOLUNTEER – رئيس القسم لنفس قسمه فقط، و HR/ADMIN/SUPER_ADMIN للجميع", () => {
+  const ownerVol1 = { id: "u-vol1", role: "VOLUNTEER" as const, departmentId: "dept-tech" };
+  const ownerVol2 = { id: "u-vol2", role: "VOLUNTEER" as const, departmentId: "dept-media" };
 
-  // عضو في نفس القسم، والمهمة تابعة لقسمه
-  assert.equal(decideReviewPermission(head, memberSameDept, "dept-tech").allowed, true);
+  const headTech = { id: "u-head", role: "DEPARTMENT_HEAD" as const, departmentId: "dept-tech" };
+  const headNoDept = { id: "u-head-none", role: "DEPARTMENT_HEAD" as const, departmentId: null };
 
-  // عضو في نفس القسم، حتى لو المهمة عامة أو لقسم آخر
-  assert.equal(decideReviewPermission(head, memberSameDept, null).allowed, true);
+  // رئيس قسم متطابق القسم
+  assert.equal(decideReviewPermission(headTech, ownerVol1).allowed, true);
 
-  // عضو في قسم آخر لكن المهمة لقسم رئيس القسم
-  assert.equal(decideReviewPermission(head, memberOtherDept, "dept-tech").allowed, true);
-
-  // عضو في قسم آخر والمهمة لقسم آخر -> مرفوض
-  const mismatch = decideReviewPermission(head, memberOtherDept, "dept-media");
+  // رئيس قسم مختلف القسم -> مرفوض
+  const mismatch = decideReviewPermission(headTech, ownerVol2);
   assert.equal(mismatch.allowed, false);
   if (!mismatch.allowed) assert.equal(mismatch.reason, "department_mismatch");
 
-  // رئيس قسم ليس لديه departmentId محدد -> مرفوض
-  const headNoDept = { id: "u-head2", role: "DEPARTMENT_HEAD" as const, departmentId: null };
-  assert.equal(decideReviewPermission(headNoDept, memberSameDept, "dept-tech").allowed, false);
-});
+  // رئيس قسم بلا قسم -> مرفوض
+  assert.equal(decideReviewPermission(headNoDept, ownerVol1).allowed, false);
 
-test("decideReviewPermission: HR و ADMIN و SUPER_ADMIN يراجعون الجميع عدا أنفسهم", () => {
-  const target = { id: "u-target", role: "VOLUNTEER" as const, departmentId: "dept-xyz" };
-
+  // HR و ADMIN و SUPER_ADMIN
   const hr = { id: "u-hr", role: "HR" as const, departmentId: null };
   const admin = { id: "u-admin", role: "ADMIN" as const, departmentId: null };
   const superAdmin = { id: "u-super", role: "SUPER_ADMIN" as const, departmentId: null };
 
-  assert.equal(decideReviewPermission(hr, target, "dept-xyz").allowed, true);
-  assert.equal(decideReviewPermission(admin, target, "dept-xyz").allowed, true);
-  assert.equal(decideReviewPermission(superAdmin, target, "dept-xyz").allowed, true);
+  assert.equal(decideReviewPermission(hr, ownerVol1).allowed, true);
+  assert.equal(decideReviewPermission(admin, ownerVol1).allowed, true);
+  assert.equal(decideReviewPermission(superAdmin, ownerVol1).allowed, true);
+});
+
+test("decideReviewPermission: صاحب التكليف DEPARTMENT_HEAD – لا يراجعه رئيس قسم، ويراجعه HR و ADMIN و SUPER_ADMIN", () => {
+  const headOwner = { id: "u-head-owner", role: "DEPARTMENT_HEAD" as const, departmentId: "dept-tech" };
+
+  const anotherHead = { id: "u-head-2", role: "DEPARTMENT_HEAD" as const, departmentId: "dept-tech" };
+  const hr = { id: "u-hr", role: "HR" as const, departmentId: null };
+  const admin = { id: "u-admin", role: "ADMIN" as const, departmentId: null };
+  const superAdmin = { id: "u-super", role: "SUPER_ADMIN" as const, departmentId: null };
+
+  // رئيس قسم آخر -> مرفوض
+  const resHead = decideReviewPermission(anotherHead, headOwner);
+  assert.equal(resHead.allowed, false);
+  if (!resHead.allowed) assert.equal(resHead.reason, "role_not_allowed");
+
+  // HR و ADMIN و SUPER_ADMIN -> مسموح
+  assert.equal(decideReviewPermission(hr, headOwner).allowed, true);
+  assert.equal(decideReviewPermission(admin, headOwner).allowed, true);
+  assert.equal(decideReviewPermission(superAdmin, headOwner).allowed, true);
+});
+
+test("decideReviewPermission: صاحب التكليف HR أو ADMIN – يراجعه SUPER_ADMIN فقط، ولا يراجعه رئيس القسم أو HR أو ADMIN", () => {
+  const hrOwner = { id: "u-hr-owner", role: "HR" as const, departmentId: null };
+  const adminOwner = { id: "u-admin-owner", role: "ADMIN" as const, departmentId: null };
+
+  const head = { id: "u-head", role: "DEPARTMENT_HEAD" as const, departmentId: "dept-tech" };
+  const hrReviewer = { id: "u-hr-2", role: "HR" as const, departmentId: null };
+  const adminReviewer = { id: "u-admin-2", role: "ADMIN" as const, departmentId: null };
+  const superAdmin = { id: "u-super", role: "SUPER_ADMIN" as const, departmentId: null };
+
+  // رئيس قسم -> مرفوض
+  assert.equal(decideReviewPermission(head, hrOwner).allowed, false);
+  assert.equal(decideReviewPermission(head, adminOwner).allowed, false);
+
+  // HR يراجع HR أو ADMIN -> مرفوض
+  assert.equal(decideReviewPermission(hrReviewer, hrOwner).allowed, false);
+  assert.equal(decideReviewPermission(hrReviewer, adminOwner).allowed, false);
+
+  // ADMIN يراجع HR أو ADMIN -> مرفوض
+  assert.equal(decideReviewPermission(adminReviewer, hrOwner).allowed, false);
+  assert.equal(decideReviewPermission(adminReviewer, adminOwner).allowed, false);
+
+  // SUPER_ADMIN يراجع HR و ADMIN -> مسموح
+  assert.equal(decideReviewPermission(superAdmin, hrOwner).allowed, true);
+  assert.equal(decideReviewPermission(superAdmin, adminOwner).allowed, true);
+});
+
+test("decideReviewPermission: صاحب التكليف SUPER_ADMIN – يراجعه SUPER_ADMIN آخر فقط", () => {
+  const superOwner = { id: "u-super-owner", role: "SUPER_ADMIN" as const, departmentId: null };
+
+  const head = { id: "u-head", role: "DEPARTMENT_HEAD" as const, departmentId: "dept-tech" };
+  const hr = { id: "u-hr", role: "HR" as const, departmentId: null };
+  const admin = { id: "u-admin", role: "ADMIN" as const, departmentId: null };
+  const otherSuper = { id: "u-super-2", role: "SUPER_ADMIN" as const, departmentId: null };
+
+  assert.equal(decideReviewPermission(head, superOwner).allowed, false);
+  assert.equal(decideReviewPermission(hr, superOwner).allowed, false);
+  assert.equal(decideReviewPermission(admin, superOwner).allowed, false);
+
+  // سوبر أدمن آخر -> مسموح
+  assert.equal(decideReviewPermission(otherSuper, superOwner).allowed, true);
+});
+
+// ══════════════════════════════════════════════════════════════
+// decideTaskReassignment
+// ══════════════════════════════════════════════════════════════
+
+test("decideTaskReassignment: الفاعل غير نشط يرفض (403)", () => {
+  const actor = { id: "u-act", role: "ADMIN" as const, departmentId: null, status: "suspended" };
+  const asgn = { id: "a-1", user_id: "u-prev", status: "declined" };
+  const task = { id: "t-1", target_type: "person", lifecycle_status: "open", created_by: "u-act" };
+  const target = { id: "u-new", role: "VOLUNTEER" as const, departmentId: "d-1", status: "active" };
+
+  const res = decideTaskReassignment(actor, asgn, task, target);
+  assert.equal(res.allowed, false);
+  if (!res.allowed) {
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.reason, "inactive_actor");
+  }
+});
+
+test("decideTaskReassignment: التكليف الحالي ليس declined يرفض (409)", () => {
+  const actor = { id: "u-act", role: "ADMIN" as const, departmentId: null, status: "active" };
+  const asgn = { id: "a-1", user_id: "u-prev", status: "in_progress" };
+  const task = { id: "t-1", target_type: "person", lifecycle_status: "open", created_by: "u-act" };
+  const target = { id: "u-new", role: "VOLUNTEER" as const, departmentId: "d-1", status: "active" };
+
+  const res = decideTaskReassignment(actor, asgn, task, target);
+  assert.equal(res.allowed, false);
+  if (!res.allowed) {
+    assert.equal(res.statusCode, 409);
+    assert.equal(res.reason, "invalid_status");
+  }
+});
+
+test("decideTaskReassignment: المهمة ليست من نوع person ترفض (400)", () => {
+  const actor = { id: "u-act", role: "ADMIN" as const, departmentId: null, status: "active" };
+  const asgn = { id: "a-1", user_id: "u-prev", status: "declined" };
+  const task = { id: "t-1", target_type: "department", lifecycle_status: "open", created_by: "u-act" };
+  const target = { id: "u-new", role: "VOLUNTEER" as const, departmentId: "d-1", status: "active" };
+
+  const res = decideTaskReassignment(actor, asgn, task, target);
+  assert.equal(res.allowed, false);
+  if (!res.allowed) {
+    assert.equal(res.statusCode, 400);
+    assert.equal(res.reason, "invalid_target_type");
+  }
+});
+
+test("decideTaskReassignment: المهمة ليست مفتوحة ترفض (409)", () => {
+  const actor = { id: "u-act", role: "ADMIN" as const, departmentId: null, status: "active" };
+  const asgn = { id: "a-1", user_id: "u-prev", status: "declined" };
+  const task = { id: "t-1", target_type: "person", lifecycle_status: "completed", created_by: "u-act" };
+  const target = { id: "u-new", role: "VOLUNTEER" as const, departmentId: "d-1", status: "active" };
+
+  const res = decideTaskReassignment(actor, asgn, task, target);
+  assert.equal(res.allowed, false);
+  if (!res.allowed) {
+    assert.equal(res.statusCode, 409);
+    assert.equal(res.reason, "task_not_open");
+  }
+});
+
+test("decideTaskReassignment: الفاعل ليس المنشئ وليس إدارة عليا يرفض (403)", () => {
+  const actor = { id: "u-other", role: "VOLUNTEER" as const, departmentId: "d-1", status: "active" };
+  const asgn = { id: "a-1", user_id: "u-prev", status: "declined" };
+  const task = { id: "t-1", target_type: "person", lifecycle_status: "open", created_by: "u-creator" };
+  const target = { id: "u-new", role: "VOLUNTEER" as const, departmentId: "d-1", status: "active" };
+
+  const res = decideTaskReassignment(actor, asgn, task, target);
+  assert.equal(res.allowed, false);
+  if (!res.allowed) {
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.reason, "role_not_allowed");
+  }
+});
+
+test("decideTaskReassignment: إعادة التوجيه لنفس العضو المعتذر يرفض (400)", () => {
+  const actor = { id: "u-act", role: "ADMIN" as const, departmentId: null, status: "active" };
+  const asgn = { id: "a-1", user_id: "u-prev", status: "declined" };
+  const task = { id: "t-1", target_type: "person", lifecycle_status: "open", created_by: "u-act" };
+  const target = { id: "u-prev", role: "VOLUNTEER" as const, departmentId: "d-1", status: "active" };
+
+  const res = decideTaskReassignment(actor, asgn, task, target);
+  assert.equal(res.allowed, false);
+  if (!res.allowed) {
+    assert.equal(res.statusCode, 400);
+    assert.equal(res.reason, "same_declined_user");
+  }
+});
+
+test("decideTaskReassignment: العضو المستهدف غير نشط يرفض (403)", () => {
+  const actor = { id: "u-act", role: "ADMIN" as const, departmentId: null, status: "active" };
+  const asgn = { id: "a-1", user_id: "u-prev", status: "declined" };
+  const task = { id: "t-1", target_type: "person", lifecycle_status: "open", created_by: "u-act" };
+  const target = { id: "u-new", role: "VOLUNTEER" as const, departmentId: "d-1", status: "suspended" };
+
+  const res = decideTaskReassignment(actor, asgn, task, target);
+  assert.equal(res.allowed, false);
+  if (!res.allowed) {
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.reason, "inactive_target_user");
+  }
+});
+
+test("decideTaskReassignment: رئيس قسم أنشأ المهمة يعيد توجيهها لعضو قسمه يقبل، ولقسم آخر يرفض", () => {
+  const headActor = { id: "u-head", role: "DEPARTMENT_HEAD" as const, departmentId: "dept-tech", status: "active" };
+  const asgn = { id: "a-1", user_id: "u-prev", status: "declined" };
+  const task = { id: "t-1", target_type: "person", lifecycle_status: "open", created_by: "u-head" };
+
+  const targetSameDept = { id: "u-new-1", role: "VOLUNTEER" as const, departmentId: "dept-tech", status: "active" };
+  const targetOtherDept = { id: "u-new-2", role: "VOLUNTEER" as const, departmentId: "dept-media", status: "active" };
+
+  // نفس القسم -> مسموح
+  assert.equal(decideTaskReassignment(headActor, asgn, task, targetSameDept).allowed, true);
+
+  // قسم آخر -> مرفوض
+  const failDept = decideTaskReassignment(headActor, asgn, task, targetOtherDept);
+  assert.equal(failDept.allowed, false);
+  if (!failDept.allowed) {
+    assert.equal(failDept.statusCode, 403);
+    assert.equal(failDept.reason, "department_mismatch");
+  }
+});
+
+test("decideTaskReassignment: HR أو ADMIN أو SUPER_ADMIN يعيد التوجيه لأي عضو نشط يقبل", () => {
+  const asgn = { id: "a-1", user_id: "u-prev", status: "declined" };
+  const task = { id: "t-1", target_type: "person", lifecycle_status: "open", created_by: "u-creator-other" };
+  const target = { id: "u-new", role: "VOLUNTEER" as const, departmentId: "dept-xyz", status: "active" };
+
+  for (const role of ["HR", "ADMIN", "SUPER_ADMIN"] as const) {
+    const actor = { id: `u-${role.toLowerCase()}`, role, departmentId: null, status: "active" };
+    const res = decideTaskReassignment(actor, asgn, task, target);
+    assert.equal(res.allowed, true, `يُتوقع السماح لدور ${role}`);
+  }
 });

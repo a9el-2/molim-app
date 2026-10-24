@@ -653,14 +653,13 @@ export type ReviewPermissionDecision =
  * تحديد صلاحية مراجعة التكليف (دالة نقية):
  * - المتطوع لا يملك صلاحية المراجعة.
  * - لا أحد يراجع تكليفه بنفسه إلا SUPER_ADMIN الوحيد النشط في النظام (soleActiveSuperAdmin).
- * - رئيس القسم (DEPARTMENT_HEAD): يراجع تكليفات قسمه فقط (تطابق القسم مع العضو أو المهمة).
- * - HR و ADMIN: يراجعون الجميع غير أنفسهم.
- * - SUPER_ADMIN: يراجع الجميع غير نفسه إلا إن كان الوحيد النشط.
+ * - رئيس القسم (DEPARTMENT_HEAD): يراجع فقط عضواً ينتمي لنفس قسمه (owner.departmentId === reviewer.departmentId).
+ * - HR و ADMIN: يراجعون VOLUNTEER و DEPARTMENT_HEAD فقط، ولا يراجعون HR أو ADMIN أو SUPER_ADMIN.
+ * - SUPER_ADMIN: يراجع الجميع عدا نفسه (إلا إن كان الوحيد النشط).
  */
 export function decideReviewPermission(
   reviewer: ReviewerUser,
   assignmentOwner: AssignmentOwnerUser,
-  taskDepartmentId: string | null,
   soleActiveSuperAdmin: boolean = false
 ): ReviewPermissionDecision {
   if (reviewer.role === "VOLUNTEER") {
@@ -683,38 +682,57 @@ export function decideReviewPermission(
     };
   }
 
-  // رئيس القسم: تكليفات قسمه فقط
-  if (reviewer.role === "DEPARTMENT_HEAD") {
-    if (!reviewer.departmentId) {
-      return {
-        allowed: false,
-        reason: "department_mismatch",
-        message: "يجب أن ينتمي رئيس القسم إلى قسم لمراجعة التكليفات.",
-      };
+  // فحص الصلاحية بحسب دور صاحب التكليف
+  if (assignmentOwner.role === "VOLUNTEER") {
+    if (reviewer.role === "DEPARTMENT_HEAD") {
+      if (
+        !reviewer.departmentId ||
+        !assignmentOwner.departmentId ||
+        reviewer.departmentId !== assignmentOwner.departmentId
+      ) {
+        return {
+          allowed: false,
+          reason: "department_mismatch",
+          message: "رئيس القسم يراجع تكليفات أعضاء قسمه فقط.",
+        };
+      }
+      return { allowed: true };
     }
-
-    const matchesOwnerDept =
-      assignmentOwner.departmentId === reviewer.departmentId;
-    const matchesTaskDept = taskDepartmentId === reviewer.departmentId;
-
-    if (!matchesOwnerDept && !matchesTaskDept) {
-      return {
-        allowed: false,
-        reason: "department_mismatch",
-        message: "رئيس القسم يراجع تكليفات أعضاء قسمه أو مهام قسمه فقط.",
-      };
-    }
-
+    // HR, ADMIN, SUPER_ADMIN مسموح لهم
     return { allowed: true };
   }
 
-  // HR و ADMIN
-  if (reviewer.role === "HR" || reviewer.role === "ADMIN") {
+  if (assignmentOwner.role === "DEPARTMENT_HEAD") {
+    if (reviewer.role === "DEPARTMENT_HEAD") {
+      return {
+        allowed: false,
+        reason: "role_not_allowed",
+        message: "رئيس القسم لا يراجع تكليفات رئيس قسم آخر.",
+      };
+    }
+    // HR, ADMIN, SUPER_ADMIN مسموح لهم
     return { allowed: true };
   }
 
-  // SUPER_ADMIN
-  if (reviewer.role === "SUPER_ADMIN") {
+  if (assignmentOwner.role === "HR" || assignmentOwner.role === "ADMIN") {
+    if (reviewer.role !== "SUPER_ADMIN") {
+      return {
+        allowed: false,
+        reason: "role_not_allowed",
+        message: "تكليفات مسؤولي الموارد البشرية والإدارة العليا يراجعها الرئيس العام فقط.",
+      };
+    }
+    return { allowed: true };
+  }
+
+  if (assignmentOwner.role === "SUPER_ADMIN") {
+    if (reviewer.role !== "SUPER_ADMIN") {
+      return {
+        allowed: false,
+        reason: "role_not_allowed",
+        message: "تكليفات الرئيس العام يراجعها رئيس عام آخر فقط.",
+      };
+    }
     return { allowed: true };
   }
 
@@ -723,4 +741,144 @@ export function decideReviewPermission(
     reason: "role_not_allowed",
     message: "لا تملك الصلاحية لمراجعة هذا التكليف.",
   };
+}
+
+// ─────────────────────────────────────────────────────────────
+// 5) decideTaskReassignment
+// ─────────────────────────────────────────────────────────────
+
+export type ReassignActor = {
+  id: string;
+  role: UserRole;
+  departmentId: string | null;
+  status: string;
+};
+
+export type ReassignCurrentAssignment = {
+  id: string;
+  user_id: string;
+  status: string;
+};
+
+export type ReassignTaskInfo = {
+  id: string;
+  target_type: string | null;
+  lifecycle_status: string | null;
+  created_by: string | null;
+};
+
+export type ReassignTargetUser = {
+  id: string;
+  role: UserRole;
+  departmentId: string | null;
+  status: string;
+};
+
+export type ReassignmentDecision =
+  | { allowed: true }
+  | { allowed: false; reason: string; message: string; statusCode: 400 | 403 | 404 | 409 };
+
+/**
+ * فحص صلاحية إعادة توجيه مهمة شخصية (person) اعتذر عنها العضو السابق (نقية – بلا قاعدة بيانات):
+ * - المستخدم الفاعل نشط (status === "active").
+ * - التكليف الحالي حالته declined.
+ * - المهمة نوعها person ومفتوحة lifecycle_status === "open".
+ * - الفاعل هو منشئ المهمة (created_by) أو دوره ADMIN أو SUPER_ADMIN أو HR.
+ * - العضو المستهدف الجديد ليس نفس العضو المعتذر.
+ * - العضو المستهدف الجديد حسابه نشط.
+ * - الفاعل يملك صلاحية تكليف العضو المستهدف (عبر decideTaskAssignmentToPerson).
+ */
+export function decideTaskReassignment(
+  actor: ReassignActor,
+  assignment: ReassignCurrentAssignment,
+  task: ReassignTaskInfo,
+  targetUser: ReassignTargetUser
+): ReassignmentDecision {
+  if (String(actor.status ?? "").toLowerCase() !== "active") {
+    return {
+      allowed: false,
+      reason: "inactive_actor",
+      message: "حسابك غير نشط.",
+      statusCode: 403,
+    };
+  }
+
+  if (assignment.status !== "declined") {
+    return {
+      allowed: false,
+      reason: "invalid_status",
+      message: "إعادة التوجيه متاحة فقط عندما يكون التكليف الحالي معتذراً عنه (declined).",
+      statusCode: 409,
+    };
+  }
+
+  if (task.target_type !== "person") {
+    return {
+      allowed: false,
+      reason: "invalid_target_type",
+      message: "إعادة التوجيه متاحة فقط للمهام الموجهة لأشخاص محددين (person).",
+      statusCode: 400,
+    };
+  }
+
+  if (task.lifecycle_status !== "open") {
+    return {
+      allowed: false,
+      reason: "task_not_open",
+      message: "المهمة ليست مفتوحة لإعادة التوجيه.",
+      statusCode: 409,
+    };
+  }
+
+  // الفاعل: منشئ المهمة أو ADMIN أو SUPER_ADMIN أو HR
+  const isCreator = task.created_by === actor.id;
+  const isHighRole =
+    actor.role === "ADMIN" ||
+    actor.role === "SUPER_ADMIN" ||
+    actor.role === "HR";
+
+  if (!isCreator && !isHighRole) {
+    return {
+      allowed: false,
+      reason: "role_not_allowed",
+      message: "غير مصرح لك بإعادة توجيه هذه المهمة (يجب أن تكون المنشئ أو الإدارة).",
+      statusCode: 403,
+    };
+  }
+
+  if (targetUser.id === assignment.user_id) {
+    return {
+      allowed: false,
+      reason: "same_declined_user",
+      message: "لا يمكن إعادة توجيه المهمة لنفس العضو الذي اعتذر عنها.",
+      statusCode: 400,
+    };
+  }
+
+  if (String(targetUser.status ?? "").toLowerCase() !== "active") {
+    return {
+      allowed: false,
+      reason: "inactive_target_user",
+      message: "المستخدم المستهدف غير نشط.",
+      statusCode: 403,
+    };
+  }
+
+  // التحقق من الصلاحية حسب الأقسام
+  const personDecision = decideTaskAssignmentToPerson(
+    actor.role,
+    actor.departmentId,
+    targetUser.departmentId
+  );
+
+  if (!personDecision.allowed) {
+    return {
+      allowed: false,
+      reason: personDecision.reason,
+      message: personDecision.message,
+      statusCode: 403,
+    };
+  }
+
+  return { allowed: true };
 }

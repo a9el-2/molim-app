@@ -117,7 +117,6 @@ export async function POST(
   const permission = decideReviewPermission(
     { id: currentUser.id, role: reviewerRole, departmentId: reviewerDeptId },
     { id: ownerObj.id, role: ownerRole, departmentId: ownerDeptId },
-    taskDeptId,
     soleActiveSuperAdmin
   );
 

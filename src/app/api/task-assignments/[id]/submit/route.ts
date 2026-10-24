@@ -119,13 +119,42 @@ export async function POST(
   const deptId = taskObj?.department_id ?? null;
 
   // 5) تدوين الحدث في task_events
-  await supabase.from("task_events").insert({
+  const { error: eventErr } = await supabase.from("task_events").insert({
     task_id: assignment.task_id,
     assignment_id: id,
     actor_id: currentUser.id,
     event_type: "submit_task",
     reason: "تسليم المهمة وطلب المراجعة والاعتماد",
   });
+
+  if (eventErr) {
+    // التراجع في حال فشل تدوين الحدث
+    const { error: rollbackErr } = await supabase
+      .from("task_assignments")
+      .update({
+        status: assignment.status,
+        submitted_at: assignment.submitted_at,
+        updated_at: assignment.updated_at,
+      })
+      .eq("id", id)
+      .eq("status", updatedRecord.status);
+
+    if (rollbackErr) {
+      console.error(
+        `CRITICAL: Rollback failed for task_assignment ${id} after event failure:`,
+        rollbackErr
+      );
+      return NextResponse.json(
+        { error: "تعذر توثيق العملية وفشل التراجع التلقائي. يرجى التواصل مع الإدارة فوراً." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: "تعذر تدوين حدث تسليم المهمة. أُلغيت العملية للحفاظ على النزاهة." },
+      { status: 500 }
+    );
+  }
 
   // 6) تدوين الحدث في audit_logs
   const { task: _t, ...cleanBeforeData } = assignment;
@@ -148,7 +177,7 @@ export async function POST(
 
   if (auditErr) {
     // التراجع في حال فشل التدقيق
-    await supabase
+    const { error: rollbackErr } = await supabase
       .from("task_assignments")
       .update({
         status: assignment.status,
@@ -157,6 +186,17 @@ export async function POST(
       })
       .eq("id", id)
       .eq("status", updatedRecord.status);
+
+    if (rollbackErr) {
+      console.error(
+        `CRITICAL: Rollback failed for task_assignment ${id} after audit failure:`,
+        rollbackErr
+      );
+      return NextResponse.json(
+        { error: "تعذر توثيق العملية وفشل التراجع التلقائي. يرجى التواصل مع الإدارة فوراً." },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json(
       { error: "تعذر توثيق العملية في سجل التدقيق. أُلغيت العملية للحفاظ على النزاهة." },

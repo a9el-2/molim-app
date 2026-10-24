@@ -136,7 +136,6 @@ export async function GET(request: Request) {
     const decision = decideReviewPermission(
       reviewer,
       owner,
-      taskDeptId,
       soleActiveSuperAdmin
     );
 
