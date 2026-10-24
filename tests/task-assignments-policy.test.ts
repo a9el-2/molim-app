@@ -1064,3 +1064,17 @@ test("decideTaskReassignment: HR أو ADMIN أو SUPER_ADMIN يعيد التوج
     assert.equal(res.allowed, true, `يُتوقع السماح لدور ${role}`);
   }
 });
+
+test("decideTaskReassignment: رئيس قسم أنشأ المهمة لكن المستهدف قسمه null يرفض (department_mismatch)", () => {
+  const actor = { id: "u-head", role: "DEPARTMENT_HEAD" as const, departmentId: "dept-tech", status: "active" };
+  const asgn = { id: "a-1", user_id: "u-prev", status: "declined" };
+  const task = { id: "t-1", target_type: "person", lifecycle_status: "open", created_by: "u-head" };
+  const target = { id: "u-new", role: "VOLUNTEER" as const, departmentId: null, status: "active" };
+
+  const res = decideTaskReassignment(actor, asgn, task, target);
+  assert.equal(res.allowed, false);
+  if (!res.allowed) {
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.reason, "department_mismatch");
+  }
+});

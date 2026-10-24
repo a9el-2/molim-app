@@ -159,7 +159,7 @@ export async function POST(
     );
   }
 
-  // 6) تحديث المستخدم المستهدف في جدول tasks
+  // 6) تحديث المستخدم المستهدف في جدول tasks (متفائل: يتحقق من lifecycle_status وtarget_user_id الحالي)
   const prevTargetUserId = assignment.user_id;
   const { data: updatedTask, error: taskUpdateErr } = await supabase
     .from("tasks")
@@ -168,89 +168,83 @@ export async function POST(
       updated_at: new Date().toISOString(),
     })
     .eq("id", taskObj.id)
+    .eq("lifecycle_status", "open")
+    .eq("target_user_id", prevTargetUserId)
     .select()
     .maybeSingle();
 
-  if (taskUpdateErr || !updatedTask) {
+  if (taskUpdateErr) {
     return NextResponse.json(
       { error: "تعذر تحديث المهمة بالهدف الجديد." },
       { status: 500 }
     );
   }
 
-  // 7) إنشاء أو تحديث سجل التكليف للعضو الجديد (offered)
-  const { data: existingTargetAsgn } = await supabase
+  if (!updatedTask) {
+    return NextResponse.json(
+      { error: "تغيّرت المهمة، حدّث الصفحة." },
+      { status: 409 }
+    );
+  }
+
+  // 7) التحقق من عدم وجود سجل سابق للعضو المستهدف على هذه المهمة (أي حالة)
+  const { data: existingCheck, error: existCheckErr } = await supabase
     .from("task_assignments")
-    .select("id, status, status_reason, updated_at")
+    .select("id")
     .eq("task_id", taskObj.id)
     .eq("user_id", targetUser.id)
     .maybeSingle();
 
-  let newOrUpdatedAssignment: Record<string, unknown> | null = null;
-  let isNewlyInserted = false;
-
-  if (existingTargetAsgn) {
-    const { data: updatedAsgn, error: asgnUpdateErr } = await supabase
-      .from("task_assignments")
-      .update({
-        status: "offered",
-        offered_by: currentUser.id,
-        status_reason: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existingTargetAsgn.id)
-      .select()
-      .maybeSingle();
-
-    if (asgnUpdateErr || !updatedAsgn) {
-      // تراجع عن تحديث المهمة
-      await supabase
-        .from("tasks")
-        .update({ target_user_id: prevTargetUserId })
-        .eq("id", taskObj.id);
-
-      return NextResponse.json(
-        { error: "تعذر تحديث سجل التكليف للعضو الجديد." },
-        { status: 500 }
-      );
-    }
-    newOrUpdatedAssignment = updatedAsgn;
-  } else {
-    isNewlyInserted = true;
-    const { data: insertedAsgn, error: asgnInsertErr } = await supabase
-      .from("task_assignments")
-      .insert({
-        task_id: taskObj.id,
-        user_id: targetUser.id,
-        status: "offered",
-        offered_by: currentUser.id,
-      })
-      .select()
-      .maybeSingle();
-
-    if (asgnInsertErr || !insertedAsgn) {
-      // تراجع عن تحديث المهمة
-      await supabase
-        .from("tasks")
-        .update({ target_user_id: prevTargetUserId })
-        .eq("id", taskObj.id);
-
-      return NextResponse.json(
-        { error: "تعذر إنشاء سجل التكليف للعضو الجديد." },
-        { status: 500 }
-      );
-    }
-    newOrUpdatedAssignment = insertedAsgn;
-  }
-
-  if (!newOrUpdatedAssignment) {
+  if (existCheckErr) {
+    // تراجع عن تحديث المهمة
+    await supabase
+      .from("tasks")
+      .update({ target_user_id: prevTargetUserId })
+      .eq("id", taskObj.id);
     return NextResponse.json(
-      { error: "تعذر إنشاء أو تحديث سجل التكليف للعضو الجديد." },
+      { error: "تعذر التحقق من سجلات التكليف." },
       { status: 500 }
     );
   }
 
-  const newAssignmentId = String(newOrUpdatedAssignment.id);
+  if (existingCheck) {
+    // تراجع عن تحديث المهمة
+    await supabase
+      .from("tasks")
+      .update({ target_user_id: prevTargetUserId })
+      .eq("id", taskObj.id);
+    return NextResponse.json(
+      { error: "لهذا العضو سجل سابق على المهمة." },
+      { status: 409 }
+    );
+  }
+
+  // 8 مؤقت) إنشاء سجل التكليف الجديد (offered)
+  const { data: insertedAsgn, error: asgnInsertErr } = await supabase
+    .from("task_assignments")
+    .insert({
+      task_id: taskObj.id,
+      user_id: targetUser.id,
+      status: "offered",
+      offered_by: currentUser.id,
+    })
+    .select()
+    .maybeSingle();
+
+  if (asgnInsertErr || !insertedAsgn) {
+    // تراجع عن تحديث المهمة
+    await supabase
+      .from("tasks")
+      .update({ target_user_id: prevTargetUserId })
+      .eq("id", taskObj.id);
+
+    return NextResponse.json(
+      { error: "تعذر إنشاء سجل التكليف للعضو الجديد." },
+      { status: 500 }
+    );
+  }
+
+  const newAssignmentId = String(insertedAsgn.id);
 
   // دالة مساعدة للتراجع الآمن عند فشل الخطوات التالية
   const performRollback = async () => {
@@ -263,23 +257,11 @@ export async function POST(
       .eq("id", taskObj.id);
     if (rTaskErr) taskRollbackOk = false;
 
-    if (isNewlyInserted) {
-      const { error: rDelErr } = await supabase
-        .from("task_assignments")
-        .delete()
-        .eq("id", newAssignmentId);
-      if (rDelErr) asgnRollbackOk = false;
-    } else if (existingTargetAsgn) {
-      const { error: rUpdErr } = await supabase
-        .from("task_assignments")
-        .update({
-          status: existingTargetAsgn.status,
-          status_reason: existingTargetAsgn.status_reason,
-          updated_at: existingTargetAsgn.updated_at,
-        })
-        .eq("id", existingTargetAsgn.id);
-      if (rUpdErr) asgnRollbackOk = false;
-    }
+    const { error: rDelErr } = await supabase
+      .from("task_assignments")
+      .delete()
+      .eq("id", newAssignmentId);
+    if (rDelErr) asgnRollbackOk = false;
 
     return taskRollbackOk && asgnRollbackOk;
   };
@@ -316,7 +298,7 @@ export async function POST(
   const auditPayload = {
     actor_id: currentUser.id,
     category: "tasks",
-    action: "reassign_task",
+    action: "create_task",
     target_type: "tasks",
     target_id: String(taskObj.id),
     target_user_id: targetUser.id,
@@ -330,7 +312,7 @@ export async function POST(
       new_assignment_id: newAssignmentId,
       status: "offered",
     },
-    details: `إعادة توجيه المهمة إلى ${targetUser.id} بعد اعتذار ${prevTargetUserId}`,
+    details: `[إعادة توجيه] إعادة توجيه المهمة ${String(taskObj.id)} إلى ${targetUser.id} بعد اعتذار ${prevTargetUserId}`,
   };
 
   const { error: auditErr } = await supabase
@@ -358,7 +340,7 @@ export async function POST(
 
   return NextResponse.json({
     ok: true,
-    assignment: newOrUpdatedAssignment,
+    assignment: insertedAsgn,
     task_id: taskObj.id,
   });
 }

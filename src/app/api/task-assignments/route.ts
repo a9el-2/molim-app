@@ -284,10 +284,44 @@ export async function GET(request: Request) {
     );
   }
 
+  // 4) جلب تكليفات مرفوضة لمهام person في استعلام واحد (منع N+1)
+  const personTaskIds = (createdTasks ?? [])
+    .filter((t) => t.target_type === "person")
+    .map((t) => String(t.id));
+
+  const declinedMap = new Map<
+    string,
+    Array<{ id: string; user_id: string; status_reason: string | null; updated_at: string }>
+  >();
+
+  if (personTaskIds.length > 0) {
+    const { data: declinedRows } = await supabase
+      .from("task_assignments")
+      .select("id, task_id, user_id, status_reason, updated_at")
+      .in("task_id", personTaskIds)
+      .eq("status", "declined");
+
+    for (const row of declinedRows ?? []) {
+      const tid = String(row.task_id);
+      if (!declinedMap.has(tid)) declinedMap.set(tid, []);
+      declinedMap.get(tid)!.push({
+        id: String(row.id),
+        user_id: String(row.user_id),
+        status_reason: row.status_reason as string | null,
+        updated_at: String(row.updated_at),
+      });
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     assignments: myAssignments ?? [],
     availableTasks,
-    createdTasks: createdTasks ?? [],
+    createdTasks: (createdTasks ?? []).map((t) => ({
+      ...t,
+      ...(t.target_type === "person"
+        ? { declinedAssignments: declinedMap.get(String(t.id)) ?? [] }
+        : {}),
+    })),
   });
 }
