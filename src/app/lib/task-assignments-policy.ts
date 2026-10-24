@@ -1,12 +1,29 @@
 /**
  * دوال نقية بلا قاعدة بيانات لسياسات تكليفات المهام:
+ * - SEAT_STATUSES: حالات التكليف التي تُعد مقعداً مشغولاً للمهمة.
  * - validateNewTaskFields: التحقق من حقول إنشاء المهمة الجديدة.
  * - mapClaimError: تحويل رسالة خطأ claim_task إلى استجابة HTTP.
  * - canViewTaskAssignments: هل يحق للمشاهد رؤية تكليفات مستخدم آخر.
+ * - isTaskAvailableForUser: تحديد ما إذا كانت المهمة متاحة لاستلام العضو.
+ * - decideTaskAssignmentToPerson: تحديد صلاحية توجيه مهمة لعضو محدد.
  */
 
 import { isValidISODate } from "./hours-policy.ts";
 import type { UserRole } from "./roles.ts";
+import type { TaskDbTargetType } from "./tasks-payload.ts";
+
+// ─────────────────────────────────────────────────────────────
+// SEAT_STATUSES: الحالات التي تُعد مقعداً مشغولاً للمهمة
+// المرجع: db/planned/0003b_tasks_assignments.sql
+// ─────────────────────────────────────────────────────────────
+export const SEAT_STATUSES = [
+  "in_progress",
+  "submitted",
+  "needs_revision",
+  "approved",
+] as const;
+
+export type SeatStatus = (typeof SEAT_STATUSES)[number];
 
 // ─────────────────────────────────────────────────────────────
 // validateNewTaskFields
@@ -99,7 +116,7 @@ export function validateNewTaskFields(
       return {
         valid: false,
         field: "dueDate",
-        message: "تاريخ الاستحقاق غير صالح (يجب أن يكون بصيغة YYYY-MM-DD وتاريخاً تقويمياً صحيحاً).",
+        message: "تاريخ الاستحقاق غير صالح (يجب أن يكون بصيغة YYYY-MM-DD وتاريخاً تقويمياً صحيحة).",
       };
     }
 
@@ -218,3 +235,186 @@ export function canViewTaskAssignments(
   // VOLUNTEER والأدوار الأخرى: لا يرون إلا أنفسهم (معالج بالشرط الأول)
   return false;
 }
+
+// ─────────────────────────────────────────────────────────────
+// isTaskAvailableForUser
+// ─────────────────────────────────────────────────────────────
+
+export type TaskAvailableCandidate = {
+  id: string | number;
+  lifecycle_status?: string | null;
+  target_type: TaskDbTargetType | string | null;
+  created_by?: string | null;
+  target_user_id?: string | null;
+  department_id?: string | null;
+  target_department_ids?: string[] | unknown;
+};
+
+export type UserAvailableCandidate = {
+  id: string;
+  role: UserRole;
+  departmentId: string | null;
+  status: string;
+};
+
+/**
+ * فحص احتواء target_department_ids على معرّف القسم المطلوب.
+ * يتعامل بأمان مع المصفوفات ونصوص JSON.
+ */
+export function containsDepartment(
+  targetDepartmentIds: unknown,
+  departmentId: string | null | undefined
+): boolean {
+  if (!departmentId || !departmentId.trim()) return false;
+  if (!targetDepartmentIds) return false;
+
+  let list: unknown[] = [];
+  if (Array.isArray(targetDepartmentIds)) {
+    list = targetDepartmentIds;
+  } else if (typeof targetDepartmentIds === "string") {
+    try {
+      const parsed = JSON.parse(targetDepartmentIds);
+      if (Array.isArray(parsed)) list = parsed;
+    } catch {
+      // ليس JSON صالحاً، قد يكون نصاً عادياً لمعرف قسم مفرد
+      if (targetDepartmentIds.trim() === departmentId.trim()) return true;
+    }
+  }
+
+  return list.some((item) => String(item).trim() === departmentId.trim());
+}
+
+/**
+ * هل المهمة متاحة للعرض والاستلام من قبل المستخدم الحالي؟ (دالة نقية)
+ * - العضو يجب أن يكون نشطاً (status === "active").
+ * - دورة حياة المهمة يجب أن تكون مفتوحة (lifecycle_status === "open").
+ * - الأنواع:
+ *    * self: لا تظهر لغير صاحبها (created_by أو target_user_id).
+ *    * person: لا تظهر (تُوجّه مباشرة للعضو كعرض offered ولا تُعرض للاستلام العام).
+ *    * department: لقسم العضو (عبر department_id أو target_department_ids).
+ *    * multiple_departments: فحص target_department_ids.
+ *    * all_departments: لأي عضو نشط.
+ *    * upper_management: محصورة بـ ADMIN و SUPER_ADMIN فقط.
+ */
+export function isTaskAvailableForUser(
+  task: TaskAvailableCandidate,
+  user: UserAvailableCandidate
+): boolean {
+  // العضو يجب أن يكون نشطاً دائماً
+  if (String(user.status ?? "").toLowerCase() !== "active") {
+    return false;
+  }
+
+  // دورة حياة المهمة يجب أن تكون مفتوحة
+  if (task.lifecycle_status && task.lifecycle_status !== "open") {
+    return false;
+  }
+
+  const targetType = task.target_type;
+
+  // 1) self: لا تظهر لغير صاحبها
+  if (targetType === "self") {
+    return task.created_by === user.id || task.target_user_id === user.id;
+  }
+
+  // 2) person: لا تظهر في قائمة المهام المتاحة للاستلام العام
+  if (targetType === "person") {
+    return false;
+  }
+
+  // 3) department: مهمة لقسم العضو
+  if (targetType === "department") {
+    if (!user.departmentId) return false;
+    if (task.department_id && task.department_id === user.departmentId) {
+      return true;
+    }
+    return containsDepartment(task.target_department_ids, user.departmentId);
+  }
+
+  // 4) multiple_departments: فحص وجود قسم العضو في target_department_ids
+  if (targetType === "multiple_departments") {
+    if (!user.departmentId) return false;
+    return containsDepartment(task.target_department_ids, user.departmentId);
+  }
+
+  // 5) all_departments: متاحة لأي عضو نشط
+  if (targetType === "all_departments") {
+    return true;
+  }
+
+  // 6) upper_management: ADMIN و SUPER_ADMIN فقط
+  if (targetType === "upper_management") {
+    return user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+  }
+
+  return false;
+}
+
+// ─────────────────────────────────────────────────────────────
+// decideTaskAssignmentToPerson
+// ─────────────────────────────────────────────────────────────
+
+export type PersonAssignmentDecision =
+  | { allowed: true }
+  | { allowed: false; reason: string; message: string };
+
+/**
+ * تحديد صلاحية توجيه مهمة لعضو محدد (دالة نقية):
+ * - DEPARTMENT_HEAD: لأعضاء قسمه فقط.
+ * - HR و ADMIN و SUPER_ADMIN: لأي عضو.
+ * - VOLUNTEER (وغيرهم): لا يملكون صلاحية توجيه مهام لأعضاء آخرين (إلا لأنفسهم عبر scope=self).
+ */
+export function decideTaskAssignmentToPerson(
+  requesterRole: UserRole,
+  requesterDepartmentId: string | null,
+  targetDepartmentId: string | null
+): PersonAssignmentDecision {
+  if (
+    requesterRole === "HR" ||
+    requesterRole === "ADMIN" ||
+    requesterRole === "SUPER_ADMIN"
+  ) {
+    return { allowed: true };
+  }
+
+  if (requesterRole === "DEPARTMENT_HEAD") {
+    if (!requesterDepartmentId || requesterDepartmentId !== targetDepartmentId) {
+      return {
+        allowed: false,
+        reason: "department_mismatch",
+        message: "رئيس القسم يمكنه تكليف أعضاء قسمه فقط.",
+      };
+    }
+    return { allowed: true };
+  }
+
+  return {
+    allowed: false,
+    reason: "role_not_allowed",
+    message: "لا تملك الصلاحية لتكليف مهمة لعضو آخر.",
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// نوع الحمولة الصارم لإنشاء المهمة الجديدة
+// ─────────────────────────────────────────────────────────────
+
+export type TaskAssignmentTaskInsertPayload = {
+  title: string;
+  description: string | null;
+  target_type: TaskDbTargetType;
+  target_user_id: string | null;
+  target_department_ids: string[];
+  department_id: string | null;
+  lifecycle_status: "open";
+  requested_hours: number | null;
+  due_date: string | null;
+  created_by: string;
+  assigned_to: string | null;
+  required_assignees: number | null;
+  priority: "normal" | "urgent";
+  reviewed_by: null;
+  reviewed_at: null;
+  review_decision: null;
+  review_reason: null;
+};

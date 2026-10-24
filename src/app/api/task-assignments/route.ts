@@ -3,8 +3,11 @@ import { getSupabaseServerClient } from "../../lib/supabase/server";
 import { authenticateRequest } from "../../lib/server-auth";
 import {
   canViewTaskAssignments,
+  isTaskAvailableForUser,
+  SEAT_STATUSES,
   type ViewerInfo,
   type TargetUserInfo,
+  type UserAvailableCandidate,
 } from "../../lib/task-assignments-policy";
 import type { UserRole } from "../../lib/roles";
 
@@ -12,7 +15,7 @@ import type { UserRole } from "../../lib/roles";
  * GET /api/task-assignments
  * يرجع للمستخدم الحالي:
  * 1. تكليفاته الخاصة (task_assignments الخاصة به).
- * 2. المهام المتاحة للاستلام في قسمه (lifecycle_status='open', ليس له سجل, عدد الفعّال < required_assignees).
+ * 2. المهام المتاحة للاستلام (lifecycle_status='open', ليس له سجل فيها، وعدد المقاعد المشغولة < required_assignees).
  * 3. المهام التي أنشأها.
  *
  * مع معامل اختياري userId للمسؤولين:
@@ -31,10 +34,10 @@ export async function GET(request: Request) {
     );
   }
 
-  // قراءة بيانات المستخدم الحالي
+  // قراءة بيانات المستخدم الحالي والتأكد من حالته
   const { data: currentUser, error: userError } = await supabase
     .from("users")
-    .select("id, role, department_id")
+    .select("id, role, department_id, status")
     .eq("id", auth.user.id)
     .maybeSingle();
 
@@ -47,14 +50,14 @@ export async function GET(request: Request) {
 
   const viewerRole = currentUser.role as UserRole;
   const viewerDeptId = currentUser.department_id as string | null;
+  const viewerStatus = String(currentUser.status ?? "pending");
 
   // فحص معامل userId الاختياري
   const { searchParams } = new URL(request.url);
   const targetUserIdParam = searchParams.get("userId");
 
-  // إذا طُلب userId، تحقق من الصلاحية أولاً
+  // إذا طُلب userId لمستخدم آخر، تحقق من الصلاحية أولاً
   if (targetUserIdParam && targetUserIdParam !== currentUser.id) {
-    // نحتاج departmentId الخاص بالمستخدم المستهدف
     const { data: targetUserData, error: targetUserError } = await supabase
       .from("users")
       .select("id, department_id")
@@ -85,7 +88,7 @@ export async function GET(request: Request) {
       );
     }
 
-    // إرجاع تكليفات المستخدم المستهدف فقط
+    // إرجاع تكليفات المستخدم المستهدف بالأعمدة الرسمية من db/planned/0003b_tasks_assignments.sql
     const { data: assignments, error: assignmentsError } = await supabase
       .from("task_assignments")
       .select(
@@ -95,8 +98,11 @@ export async function GET(request: Request) {
         user_id,
         status,
         offered_by,
-        claimed_at,
-        completed_at,
+        accepted_at,
+        submitted_at,
+        reviewed_at,
+        status_reason,
+        approved_hours,
         created_at,
         updated_at,
         task:tasks (
@@ -124,10 +130,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: true, assignments: assignments ?? [] });
   }
 
-  // المستخدم الحالي: يرجع بياناته الثلاثة
+  // للمستخدم الحالي
   const userId = targetUserIdParam ?? currentUser.id;
 
-  // 1) تكليفاته الخاصة
+  // 1) تكليفاته الخاصة بالأعمدة الرسمية من db/planned/0003b_tasks_assignments.sql
   const { data: myAssignments, error: myAssignmentsError } = await supabase
     .from("task_assignments")
     .select(
@@ -137,8 +143,11 @@ export async function GET(request: Request) {
       user_id,
       status,
       offered_by,
-      claimed_at,
-      completed_at,
+      accepted_at,
+      submitted_at,
+      reviewed_at,
+      status_reason,
+      approved_hours,
       created_at,
       updated_at,
       task:tasks (
@@ -163,11 +172,12 @@ export async function GET(request: Request) {
     );
   }
 
-  // 2) المهام المتاحة للاستلام في قسمه
-  // lifecycle_status='open', ليس له سجل في task_assignments, عدد الفعّال < required_assignees
-  let availableTasks: unknown[] = [];
-  if (viewerDeptId) {
-    // جلب المهام المفتوحة الخاصة بالقسم
+  // 2) المهام المتاحة للاستلام
+  // تجلب المهام المفتوحة ثم تُصفّى بدالة نقية بدون .or() يدوي، مع منع N+1 باستعلام واحد
+  const availableTasks: unknown[] = [];
+
+  if (viewerStatus === "active") {
+    // أ) جلب كل المهام المفتوحة
     const { data: openTasks, error: openTasksError } = await supabase
       .from("tasks")
       .select(
@@ -179,46 +189,71 @@ export async function GET(request: Request) {
         priority,
         due_date,
         created_by,
+        target_user_id,
         required_assignees,
         department_id,
         target_department_ids,
-        target_type
+        target_type,
+        created_at,
+        updated_at
       `
       )
-      .eq("lifecycle_status", "open")
-      .or(
-        `department_id.eq.${viewerDeptId},target_department_ids.cs.{${viewerDeptId}},target_type.eq.all_departments`
+      .eq("lifecycle_status", "open");
+
+    if (!openTasksError && openTasks && openTasks.length > 0) {
+      const userCandidate: UserAvailableCandidate = {
+        id: currentUser.id,
+        role: viewerRole,
+        departmentId: viewerDeptId,
+        status: viewerStatus,
+      };
+
+      // ب) التصفية بدالة نقية آمنة تغطي كافة الأنواع
+      const candidateTasks = openTasks.filter((task) =>
+        isTaskAvailableForUser(task, userCandidate)
       );
 
-    if (!openTasksError && openTasks) {
-      // فلترة: ليس للمستخدم سجل فعّال فيها، وعدد الفعّال < required_assignees
-      for (const task of openTasks) {
-        const taskId = String(task.id);
+      if (candidateTasks.length > 0) {
+        const candidateTaskIds = candidateTasks.map((t) => String(t.id));
 
-        // هل للمستخدم سجل في هذه المهمة؟
-        const { data: existingAssignment } = await supabase
+        // ج) استعلام واحد لتكليفات جميع المهام المرشحة (منع استعلام N+1)
+        const { data: candidateAssignments, error: candError } = await supabase
           .from("task_assignments")
-          .select("id, status")
-          .eq("task_id", taskId)
-          .eq("user_id", userId)
-          .maybeSingle();
+          .select("id, task_id, user_id, status")
+          .in("task_id", candidateTaskIds);
 
-        if (existingAssignment) continue;
+        if (!candError) {
+          const allAssignments = candidateAssignments ?? [];
 
-        // عدد التكليفات الفعّالة
-        const { count: activeCount } = await supabase
-          .from("task_assignments")
-          .select("id", { count: "exact", head: true })
-          .eq("task_id", taskId)
-          .in("status", ["active", "in_progress"]);
+          // د) التحقق في الذاكرة: عدم وجود تكليف للعضو + عدم اكتمال المقاعد المشغولة
+          for (const task of candidateTasks) {
+            const taskId = String(task.id);
 
-        const activeNum = activeCount ?? 0;
-        const requiredNum = task.required_assignees;
+            // هل للعضو سجل تكليف سابق في هذه المهمة؟
+            const hasExisting = allAssignments.some(
+              (a) => a.task_id === taskId && a.user_id === userId
+            );
+            if (hasExisting) continue;
 
-        // إذا كان required_assignees=null فلا حد، وإلا تحقق من العدد
-        if (requiredNum !== null && activeNum >= requiredNum) continue;
+            // عدّ المقاعد المشغولة بالحالات المحددة رسمياً SEAT_STATUSES
+            const occupiedSeats = allAssignments.filter(
+              (a) =>
+                a.task_id === taskId &&
+                (SEAT_STATUSES as readonly string[]).includes(a.status)
+            ).length;
 
-        availableTasks.push(task);
+            const reqAssignees = task.required_assignees;
+            if (
+              reqAssignees !== null &&
+              reqAssignees !== undefined &&
+              occupiedSeats >= Number(reqAssignees)
+            ) {
+              continue;
+            }
+
+            availableTasks.push(task);
+          }
+        }
       }
     }
   }

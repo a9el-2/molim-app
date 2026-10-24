@@ -11,7 +11,11 @@ import {
   sanitizeDepartmentIds,
   buildTaskAuditLogPayload,
 } from "../../../lib/tasks-payload";
-import { validateNewTaskFields } from "../../../lib/task-assignments-policy";
+import {
+  validateNewTaskFields,
+  decideTaskAssignmentToPerson,
+  type TaskAssignmentTaskInsertPayload,
+} from "../../../lib/task-assignments-policy";
 import type { UserRole } from "../../../lib/roles";
 
 /**
@@ -39,7 +43,7 @@ export async function POST(request: Request) {
   // 1) قراءة بيانات المنشئ الحقيقية من جدول users
   const { data: currentUser, error: userError } = await supabase
     .from("users")
-    .select("id, role, department_id")
+    .select("id, role, department_id, status")
     .eq("id", auth.user.id)
     .maybeSingle();
 
@@ -125,7 +129,7 @@ export async function POST(request: Request) {
     requestedHours = parsed;
   }
 
-  // تاريخ الاستحقاق (تمت المعالجة في validateNewTaskFields، نستخرجه الآن)
+  // تاريخ الاستحقاق
   let dueDate: string | null = null;
   if (rawDueDate !== undefined && rawDueDate !== null && rawDueDate !== "") {
     if (typeof rawDueDate === "string" && isValidISODate(rawDueDate.trim())) {
@@ -146,7 +150,7 @@ export async function POST(request: Request) {
   // معالجة الأقسام
   const cleanDepartmentIds = sanitizeDepartmentIds(rawDepartmentIds);
 
-  // 6) التحقق من الصلاحيات عبر decideTaskCreation
+  // 6) التحقق من الصلاحيات العامة عبر decideTaskCreation
   const decision = decideTaskCreation({
     requesterRole: creatorRole,
     requesterDepartmentId: creatorDeptId,
@@ -208,22 +212,97 @@ export async function POST(request: Request) {
     }
   }
 
-  // 8) تحديد target_type للمهمة الموجهة لشخص بعينه
-  // إذا أُرسل targetUserId، نعامله كـ "person" بشرط أن يكون UUID صالحاً
+  // 8) التحقق من المستخدم المستهدف (targetUserId) بصيغة MOL-XXXXX وصلاحية التكليف
   let isPersonTarget = false;
   let targetPersonId: string | null = null;
 
   if (typeof rawTargetUserId === "string" && rawTargetUserId.trim()) {
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(rawTargetUserId.trim())) {
+    const trimmedTarget = rawTargetUserId.trim();
+    const molIdRegex = /^MOL-\d{5}$/;
+
+    if (!molIdRegex.test(trimmedTarget)) {
       return NextResponse.json(
-        { error: "معرّف المستخدم المستهدف (targetUserId) يجب أن يكون UUID صالحاً." },
+        { error: "معرّف المستخدم المستهدف (targetUserId) يجب أن يكون بصيغة MOL-XXXXX صالحة." },
         { status: 400 }
       );
     }
-    isPersonTarget = true;
-    targetPersonId = rawTargetUserId.trim();
+
+    // فحص التعارض بين targetUserId والنطاق scope
+    if (trimmedTarget === currentUser.id) {
+      if (scope !== "self") {
+        return NextResponse.json(
+          { error: "عند تحديد نفسك كمستخدم مستهدف يجب أن يكون النطاق self." },
+          { status: 400 }
+        );
+      }
+      // عند التكليف للنفس مع scope=self
+      targetPersonId = trimmedTarget;
+    } else {
+      if (scope === "self") {
+        return NextResponse.json(
+          { error: "لا يمكن تحديد مستخدم مستهدف آخر مع نطاق المهمة الشخصية (self)." },
+          { status: 400 }
+        );
+      }
+
+      // جلب بيانات العضو المستهدف من جدول users
+      const { data: targetUser, error: targetUserError } = await supabase
+        .from("users")
+        .select("id, role, department_id, status")
+        .eq("id", trimmedTarget)
+        .maybeSingle();
+
+      if (targetUserError || !targetUser) {
+        return NextResponse.json(
+          { error: "المستخدم المستهدف غير موجود." },
+          { status: 404 }
+        );
+      }
+
+      if (String(targetUser.status ?? "").toLowerCase() !== "active") {
+        return NextResponse.json(
+          { error: "المستخدم المستهدف غير نشط." },
+          { status: 403 }
+        );
+      }
+
+      const targetDept = targetUser.department_id as string | null;
+
+      // فحص صلاحية المنشئ لتكليف هذا العضو
+      const personDecision = decideTaskAssignmentToPerson(
+        creatorRole,
+        creatorDeptId,
+        targetDept
+      );
+
+      if (!personDecision.allowed) {
+        return NextResponse.json(
+          { error: personDecision.message, reason: personDecision.reason },
+          { status: 403 }
+        );
+      }
+
+      // فحص تعارض القسم مع النطاق
+      if (scope === "own_department" && targetDept !== creatorDeptId) {
+        return NextResponse.json(
+          { error: "المستخدم المستهدف لا ينتمي لقسم المنشئ المحدد في النطاق." },
+          { status: 400 }
+        );
+      }
+
+      if (
+        scope === "departments" &&
+        (!targetDept || !cleanDepartmentIds.includes(targetDept))
+      ) {
+        return NextResponse.json(
+          { error: "المستخدم المستهدف لا ينتمي لأي من الأقسام المحددة في نطاق المهمة." },
+          { status: 400 }
+        );
+      }
+
+      isPersonTarget = true;
+      targetPersonId = trimmedTarget;
+    }
   }
 
   // 9) ربط النطاق بالحقول
@@ -234,9 +313,8 @@ export async function POST(request: Request) {
     departmentIds: cleanDepartmentIds,
   });
 
-  // بناء الحمولة مع الحقول الجديدة
-  // نحدد target_type = "person" إذا كانت مهمة موجهة لشخص بعينه
-  const insertPayload: Record<string, unknown> = {
+  // بناء الحمولة بشكل صارم (بدون Record<string, unknown>)
+  const insertPayload: TaskAssignmentTaskInsertPayload = {
     title,
     description,
     target_type: isPersonTarget ? "person" : scopeResolved.targetType,
