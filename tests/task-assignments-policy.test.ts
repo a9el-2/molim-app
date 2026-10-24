@@ -452,6 +452,22 @@ test("isTaskAvailableForUser: نوع person – لا يظهر في قائمة ا
   assert.equal(isTaskAvailableForUser(personTask, otherUser), false);
 });
 
+test("isTaskAvailableForUser: ترجع false لنوع person ولو كانت المهمة open والعضو نشط", () => {
+  const activeMember = {
+    id: "MOL-33333",
+    role: "DEPARTMENT_HEAD" as const,
+    departmentId: "dept-media",
+    status: "active",
+  };
+  const openPersonTask = {
+    id: "task-person-open",
+    lifecycle_status: "open",
+    target_type: "person",
+    target_user_id: "MOL-33333",
+  };
+  assert.equal(isTaskAvailableForUser(openPersonTask, activeMember), false);
+});
+
 test("isTaskAvailableForUser: نوع department – يظهر لأعضاء القسم فقط", () => {
   const member = {
     id: "MOL-11111",

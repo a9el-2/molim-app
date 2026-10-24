@@ -326,7 +326,7 @@ export async function POST(request: Request) {
     due_date: dueDate,
     created_by: currentUser.id,
     assigned_to: isPersonTarget ? null : scopeResolved.assignedTo,
-    required_assignees: requiredAssignees,
+    required_assignees: isPersonTarget ? 1 : requiredAssignees,
     priority,
     reviewed_by: null,
     reviewed_at: null,

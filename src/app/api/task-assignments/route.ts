@@ -131,8 +131,6 @@ export async function GET(request: Request) {
   }
 
   // للمستخدم الحالي
-  const userId = targetUserIdParam ?? currentUser.id;
-
   // 1) تكليفاته الخاصة بالأعمدة الرسمية من db/planned/0003b_tasks_assignments.sql
   const { data: myAssignments, error: myAssignmentsError } = await supabase
     .from("task_assignments")
@@ -162,7 +160,7 @@ export async function GET(request: Request) {
       )
     `
     )
-    .eq("user_id", userId)
+    .eq("user_id", currentUser.id)
     .order("created_at", { ascending: false });
 
   if (myAssignmentsError) {
@@ -231,7 +229,7 @@ export async function GET(request: Request) {
 
             // هل للعضو سجل تكليف سابق في هذه المهمة؟
             const hasExisting = allAssignments.some(
-              (a) => a.task_id === taskId && a.user_id === userId
+              (a) => a.task_id === taskId && a.user_id === currentUser.id
             );
             if (hasExisting) continue;
 
@@ -276,7 +274,7 @@ export async function GET(request: Request) {
       updated_at
     `
     )
-    .eq("created_by", userId)
+    .eq("created_by", currentUser.id)
     .order("created_at", { ascending: false });
 
   if (createdTasksError) {
