@@ -1,0 +1,185 @@
+import { NextResponse } from "next/server";
+import { getSupabaseServerClient } from "../../../../lib/supabase/server";
+import { authenticateRequest } from "../../../../lib/server-auth";
+import {
+  validateReason,
+  decideAssignmentAction,
+} from "../../../../lib/task-assignments-policy";
+
+/**
+ * POST /api/task-assignments/[id]/withdraw
+ * انسحاب العضو من المهمة بعذر واضح (من in_progress أو needs_revision إلى withdrawn مع سبب إجباري).
+ */
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await authenticateRequest(request);
+  if (!auth.ok) return auth.response;
+
+  const { id } = await params;
+
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    return NextResponse.json(
+      { error: "الخدمة غير متاحة مؤقتاً. حاول لاحقاً." },
+      { status: 503 }
+    );
+  }
+
+  // 1) قراءة بيانات المستخدم الحالي
+  const { data: currentUser, error: userError } = await supabase
+    .from("users")
+    .select("id, status")
+    .eq("id", auth.user.id)
+    .maybeSingle();
+
+  if (userError || !currentUser) {
+    return NextResponse.json(
+      { error: "تعذر التحقق من بيانات المستخدم." },
+      { status: 500 }
+    );
+  }
+
+  if (String(currentUser.status ?? "").toLowerCase() !== "active") {
+    return NextResponse.json(
+      { error: "حسابك غير نشط." },
+      { status: 403 }
+    );
+  }
+
+  // 2) قراءة جسم الطلب وفحص السبب
+  let body: Record<string, unknown> = {};
+  try {
+    body = await request.json();
+  } catch {
+    body = {};
+  }
+
+  const reasonValidation = validateReason(body.reason);
+  if (!reasonValidation.valid) {
+    return NextResponse.json(
+      { error: reasonValidation.message },
+      { status: 400 }
+    );
+  }
+
+  // 3) قراءة سجل التكليف المطلوب
+  const { data: assignment, error: fetchErr } = await supabase
+    .from("task_assignments")
+    .select(`
+      id,
+      task_id,
+      user_id,
+      status,
+      status_reason,
+      created_at,
+      updated_at,
+      task:tasks (
+        id,
+        department_id
+      )
+    `)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (fetchErr || !assignment) {
+    return NextResponse.json(
+      { error: "سجل التكليف غير موجود." },
+      { status: 404 }
+    );
+  }
+
+  // 4) التحقق من الصلاحية عبر دالة السياسة
+  const actionDecision = decideAssignmentAction(
+    { id: currentUser.id, status: currentUser.status },
+    { id: assignment.id, user_id: assignment.user_id, status: assignment.status },
+    "withdraw"
+  );
+
+  if (!actionDecision.allowed) {
+    return NextResponse.json(
+      { error: actionDecision.message, reason: actionDecision.reason },
+      { status: actionDecision.statusCode }
+    );
+  }
+
+  // 5) التحديث المتفائل للحالة إلى withdrawn
+  const { data: updatedRecord, error: updateErr } = await supabase
+    .from("task_assignments")
+    .update({
+      status: "withdrawn",
+      status_reason: reasonValidation.reason,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("status", assignment.status)
+    .select()
+    .maybeSingle();
+
+  if (updateErr || !updatedRecord) {
+    if (updateErr) {
+      return NextResponse.json(
+        { error: "تعذر الانسحاب من التكليف." },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json(
+      { error: "تغيرت حالة التكليف أثناء المعالجة. حدّث الصفحة وحاول مجدداً." },
+      { status: 409 }
+    );
+  }
+
+  const taskObj = Array.isArray(assignment.task)
+    ? assignment.task[0]
+    : assignment.task;
+  const deptId = taskObj?.department_id ?? null;
+
+  // 6) تدوين الحدث في task_events
+  await supabase.from("task_events").insert({
+    task_id: assignment.task_id,
+    assignment_id: id,
+    actor_id: currentUser.id,
+    event_type: "withdraw_task",
+    reason: reasonValidation.reason,
+  });
+
+  // 7) تدوين الحدث في audit_logs
+  const { task: _t, ...cleanBeforeData } = assignment;
+  const auditPayload = {
+    actor_id: currentUser.id,
+    category: "tasks",
+    action: "withdraw_task",
+    target_type: "tasks",
+    target_id: String(assignment.task_id),
+    target_user_id: assignment.user_id,
+    department_id: deptId,
+    before_data: cleanBeforeData,
+    after_data: updatedRecord,
+    details: `انسحاب من التكليف: ${reasonValidation.reason}`,
+  };
+
+  const { error: auditErr } = await supabase
+    .from("audit_logs")
+    .insert(auditPayload);
+
+  if (auditErr) {
+    // التراجع في حال فشل التدقيق
+    await supabase
+      .from("task_assignments")
+      .update({
+        status: assignment.status,
+        status_reason: assignment.status_reason,
+        updated_at: assignment.updated_at,
+      })
+      .eq("id", id)
+      .eq("status", updatedRecord.status);
+
+    return NextResponse.json(
+      { error: "تعذر توثيق العملية في سجل التدقيق. أُلغيت العملية للحفاظ على النزاهة." },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ ok: true, assignment: updatedRecord });
+}

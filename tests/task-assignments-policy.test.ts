@@ -9,6 +9,10 @@ import {
   isTaskAvailableForUser,
   decideTaskAssignmentToPerson,
   containsDepartment,
+  validateReason,
+  mapReviewError,
+  decideAssignmentAction,
+  decideReviewPermission,
 } from "../src/app/lib/task-assignments-policy.ts";
 
 // ══════════════════════════════════════════════════════════════
@@ -632,4 +636,243 @@ test("decideTaskAssignmentToPerson: VOLUNTEER لا يملك صلاحية توج�
   const res = decideTaskAssignmentToPerson("VOLUNTEER", "dept-tech", "dept-tech");
   assert.equal(res.allowed, false);
   if (!res.allowed) assert.equal(res.reason, "role_not_allowed");
+});
+
+// ══════════════════════════════════════════════════════════════
+// validateReason
+// ══════════════════════════════════════════════════════════════
+
+test("validateReason: غير نصي يرفض", () => {
+  assert.equal(validateReason(null).valid, false);
+  assert.equal(validateReason(undefined).valid, false);
+  assert.equal(validateReason(12345).valid, false);
+  assert.equal(validateReason({}).valid, false);
+});
+
+test("validateReason: أقل من 10 أحرف بعد trim يرفض", () => {
+  assert.equal(validateReason("").valid, false);
+  assert.equal(validateReason("   قصيرة   ").valid, false);
+  assert.equal(validateReason("123456789").valid, false);
+});
+
+test("validateReason: أطول من 1000 حرف يرفض", () => {
+  const longText = "أ".repeat(1001);
+  assert.equal(validateReason(longText).valid, false);
+});
+
+test("validateReason: 10 أحرف صالحة يقبل ويرجع النص مقتطع الأطراف", () => {
+  const text = "  اعتذار بسبب ظروف طارئة  ";
+  const r = validateReason(text);
+  assert.equal(r.valid, true);
+  if (r.valid) {
+    assert.equal(r.reason, "اعتذار بسبب ظروف طارئة");
+  }
+});
+
+test("validateReason: بالضبط 10 أحرف يقبل", () => {
+  const r = validateReason("1234567890");
+  assert.equal(r.valid, true);
+  if (r.valid) {
+    assert.equal(r.reason, "1234567890");
+  }
+});
+
+test("validateReason: بالضبط 1000 حرف يقبل", () => {
+  const r = validateReason("أ".repeat(1000));
+  assert.equal(r.valid, true);
+});
+
+// ══════════════════════════════════════════════════════════════
+// mapReviewError
+// ══════════════════════════════════════════════════════════════
+
+test("mapReviewError: ASSIGNMENT_NOT_FOUND و TASK_NOT_FOUND ترجع 404", () => {
+  const res1 = mapReviewError("ASSIGNMENT_NOT_FOUND: 123");
+  assert.equal(res1.status, 404);
+  assert.equal(res1.code, "ASSIGNMENT_NOT_FOUND");
+
+  const res2 = mapReviewError("TASK_NOT_FOUND");
+  assert.equal(res2.status, 404);
+  assert.equal(res2.code, "TASK_NOT_FOUND");
+});
+
+test("mapReviewError: NOT_SUBMITTED ترجع 409", () => {
+  const res = mapReviewError("NOT_SUBMITTED");
+  assert.equal(res.status, 409);
+  assert.equal(res.code, "NOT_SUBMITTED");
+});
+
+test("mapReviewError: SELF_REVIEW ترجع 403", () => {
+  const res = mapReviewError("SELF_REVIEW");
+  assert.equal(res.status, 403);
+  assert.equal(res.code, "SELF_REVIEW");
+});
+
+test("mapReviewError: NOTES_REQUIRED و INVALID_HOURS و INVALID_DECISION ترجع 400", () => {
+  const rNotes = mapReviewError("NOTES_REQUIRED");
+  assert.equal(rNotes.status, 400);
+  assert.equal(rNotes.code, "NOTES_REQUIRED");
+
+  const rHours = mapReviewError("INVALID_HOURS");
+  assert.equal(rHours.status, 400);
+  assert.equal(rHours.code, "INVALID_HOURS");
+
+  const rDecision = mapReviewError("INVALID_DECISION");
+  assert.equal(rDecision.status, 400);
+  assert.equal(rDecision.code, "INVALID_DECISION");
+});
+
+test("mapReviewError: خطأ غير متوقع يرجع 500 بدون تسريب تفاصيل", () => {
+  const res = mapReviewError("SOME_INTERNAL_DB_CRASH_DETAIL");
+  assert.equal(res.status, 500);
+  assert.equal(res.code, "INTERNAL_ERROR");
+});
+
+// ══════════════════════════════════════════════════════════════
+// decideAssignmentAction
+// ══════════════════════════════════════════════════════════════
+
+test("decideAssignmentAction: يرفض إذا لم يكن الفاعل صاحب التكليف (403)", () => {
+  const actor = { id: "user-1", status: "active" };
+  const assignment = { id: "asgn-1", user_id: "user-2", status: "offered" };
+
+  const res = decideAssignmentAction(actor, assignment, "decline");
+  assert.equal(res.allowed, false);
+  if (!res.allowed) {
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.reason, "not_owner");
+  }
+});
+
+test("decideAssignmentAction: يرفض إذا كان حساب المستخدم غير نشط (403)", () => {
+  const actor = { id: "user-1", status: "suspended" };
+  const assignment = { id: "asgn-1", user_id: "user-1", status: "offered" };
+
+  const res = decideAssignmentAction(actor, assignment, "decline");
+  assert.equal(res.allowed, false);
+  if (!res.allowed) {
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.reason, "inactive_user");
+  }
+});
+
+test("decideAssignmentAction: decline مسموح من offered فقط (409 لغيرها)", () => {
+  const actor = { id: "user-1", status: "active" };
+
+  const ok = decideAssignmentAction(actor, { id: "a1", user_id: "user-1", status: "offered" }, "decline");
+  assert.equal(ok.allowed, true);
+
+  const failInProgress = decideAssignmentAction(actor, { id: "a1", user_id: "user-1", status: "in_progress" }, "decline");
+  assert.equal(failInProgress.allowed, false);
+  if (!failInProgress.allowed) assert.equal(failInProgress.statusCode, 409);
+
+  const failSubmitted = decideAssignmentAction(actor, { id: "a1", user_id: "user-1", status: "submitted" }, "decline");
+  assert.equal(failSubmitted.allowed, false);
+  if (!failSubmitted.allowed) assert.equal(failSubmitted.statusCode, 409);
+});
+
+test("decideAssignmentAction: withdraw مسموح من in_progress و needs_revision فقط (409 لغيرهما)", () => {
+  const actor = { id: "user-1", status: "active" };
+
+  const okProgress = decideAssignmentAction(actor, { id: "a1", user_id: "user-1", status: "in_progress" }, "withdraw");
+  assert.equal(okProgress.allowed, true);
+
+  const okRevision = decideAssignmentAction(actor, { id: "a1", user_id: "user-1", status: "needs_revision" }, "withdraw");
+  assert.equal(okRevision.allowed, true);
+
+  const failOffered = decideAssignmentAction(actor, { id: "a1", user_id: "user-1", status: "offered" }, "withdraw");
+  assert.equal(failOffered.allowed, false);
+  if (!failOffered.allowed) assert.equal(failOffered.statusCode, 409);
+
+  const failSubmitted = decideAssignmentAction(actor, { id: "a1", user_id: "user-1", status: "submitted" }, "withdraw");
+  assert.equal(failSubmitted.allowed, false);
+  if (!failSubmitted.allowed) assert.equal(failSubmitted.statusCode, 409);
+});
+
+test("decideAssignmentAction: submit مسموح من in_progress و needs_revision فقط (409 لغيرهما)", () => {
+  const actor = { id: "user-1", status: "active" };
+
+  const okProgress = decideAssignmentAction(actor, { id: "a1", user_id: "user-1", status: "in_progress" }, "submit");
+  assert.equal(okProgress.allowed, true);
+
+  const okRevision = decideAssignmentAction(actor, { id: "a1", user_id: "user-1", status: "needs_revision" }, "submit");
+  assert.equal(okRevision.allowed, true);
+
+  const failOffered = decideAssignmentAction(actor, { id: "a1", user_id: "user-1", status: "offered" }, "submit");
+  assert.equal(failOffered.allowed, false);
+  if (!failOffered.allowed) assert.equal(failOffered.statusCode, 409);
+
+  const failApproved = decideAssignmentAction(actor, { id: "a1", user_id: "user-1", status: "approved" }, "submit");
+  assert.equal(failApproved.allowed, false);
+  if (!failApproved.allowed) assert.equal(failApproved.statusCode, 409);
+});
+
+// ══════════════════════════════════════════════════════════════
+// decideReviewPermission
+// ══════════════════════════════════════════════════════════════
+
+test("decideReviewPermission: VOLUNTEER لا يملك صلاحية المراجعة نهائياً", () => {
+  const vol = { id: "u-vol", role: "VOLUNTEER" as const, departmentId: "dept-1" };
+  const owner = { id: "u-other", role: "VOLUNTEER" as const, departmentId: "dept-1" };
+
+  const res = decideReviewPermission(vol, owner, "dept-1");
+  assert.equal(res.allowed, false);
+  if (!res.allowed) assert.equal(res.reason, "role_not_allowed");
+});
+
+test("decideReviewPermission: المراجعة الذاتية مرفوضة إلا للسوبر أدمن الوحيد", () => {
+  const deptHead = { id: "u-head", role: "DEPARTMENT_HEAD" as const, departmentId: "dept-1" };
+  const hr = { id: "u-hr", role: "HR" as const, departmentId: null };
+  const admin = { id: "u-admin", role: "ADMIN" as const, departmentId: null };
+  const superAdmin = { id: "u-super", role: "SUPER_ADMIN" as const, departmentId: null };
+
+  // غير مسموح للمراجع بمراجعة نفسه
+  assert.equal(decideReviewPermission(deptHead, { id: "u-head", role: "DEPARTMENT_HEAD", departmentId: "dept-1" }, "dept-1").allowed, false);
+  assert.equal(decideReviewPermission(hr, { id: "u-hr", role: "HR", departmentId: null }, null).allowed, false);
+  assert.equal(decideReviewPermission(admin, { id: "u-admin", role: "ADMIN", departmentId: null }, null).allowed, false);
+
+  // سوبر أدمن بوجود سوبر أدمن آخر نشط (soleActiveSuperAdmin=false)
+  const resSuperNotSole = decideReviewPermission(superAdmin, { id: "u-super", role: "SUPER_ADMIN", departmentId: null }, null, false);
+  assert.equal(resSuperNotSole.allowed, false);
+  if (!resSuperNotSole.allowed) assert.equal(resSuperNotSole.reason, "self_review");
+
+  // سوبر أدمن هو الوحيد النشط (soleActiveSuperAdmin=true) -> مسموح
+  const resSuperSole = decideReviewPermission(superAdmin, { id: "u-super", role: "SUPER_ADMIN", departmentId: null }, null, true);
+  assert.equal(resSuperSole.allowed, true);
+});
+
+test("decideReviewPermission: DEPARTMENT_HEAD يراجع تكليفات قسمه فقط (تطابق قسم العضو أو المهمة)", () => {
+  const head = { id: "u-head", role: "DEPARTMENT_HEAD" as const, departmentId: "dept-tech" };
+  const memberSameDept = { id: "u-mem1", role: "VOLUNTEER" as const, departmentId: "dept-tech" };
+  const memberOtherDept = { id: "u-mem2", role: "VOLUNTEER" as const, departmentId: "dept-media" };
+
+  // عضو في نفس القسم، والمهمة تابعة لقسمه
+  assert.equal(decideReviewPermission(head, memberSameDept, "dept-tech").allowed, true);
+
+  // عضو في نفس القسم، حتى لو المهمة عامة أو لقسم آخر
+  assert.equal(decideReviewPermission(head, memberSameDept, null).allowed, true);
+
+  // عضو في قسم آخر لكن المهمة لقسم رئيس القسم
+  assert.equal(decideReviewPermission(head, memberOtherDept, "dept-tech").allowed, true);
+
+  // عضو في قسم آخر والمهمة لقسم آخر -> مرفوض
+  const mismatch = decideReviewPermission(head, memberOtherDept, "dept-media");
+  assert.equal(mismatch.allowed, false);
+  if (!mismatch.allowed) assert.equal(mismatch.reason, "department_mismatch");
+
+  // رئيس قسم ليس لديه departmentId محدد -> مرفوض
+  const headNoDept = { id: "u-head2", role: "DEPARTMENT_HEAD" as const, departmentId: null };
+  assert.equal(decideReviewPermission(headNoDept, memberSameDept, "dept-tech").allowed, false);
+});
+
+test("decideReviewPermission: HR و ADMIN و SUPER_ADMIN يراجعون الجميع عدا أنفسهم", () => {
+  const target = { id: "u-target", role: "VOLUNTEER" as const, departmentId: "dept-xyz" };
+
+  const hr = { id: "u-hr", role: "HR" as const, departmentId: null };
+  const admin = { id: "u-admin", role: "ADMIN" as const, departmentId: null };
+  const superAdmin = { id: "u-super", role: "SUPER_ADMIN" as const, departmentId: null };
+
+  assert.equal(decideReviewPermission(hr, target, "dept-xyz").allowed, true);
+  assert.equal(decideReviewPermission(admin, target, "dept-xyz").allowed, true);
+  assert.equal(decideReviewPermission(superAdmin, target, "dept-xyz").allowed, true);
 });

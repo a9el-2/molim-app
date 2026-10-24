@@ -418,3 +418,309 @@ export type TaskAssignmentTaskInsertPayload = {
   review_decision: null;
   review_reason: null;
 };
+
+// ─────────────────────────────────────────────────────────────
+// 1) validateReason
+// ─────────────────────────────────────────────────────────────
+
+export type ReasonValidationResult =
+  | { valid: true; reason: string }
+  | { valid: false; message: string };
+
+/**
+ * التحقق من نص السبب (نقية – بلا قاعدة بيانات):
+ * - إجباري بعد trim لا يقل عن 10 أحرف ولا يزيد عن 1000 حرف.
+ * - يطابق قيد قاعدة البيانات: length(btrim(status_reason)) >= 10
+ */
+export function validateReason(text: unknown): ReasonValidationResult {
+  if (typeof text !== "string") {
+    return { valid: false, message: "السبب مطلوب ويجب أن يكون نصياً." };
+  }
+  const trimmed = text.trim();
+  if (trimmed.length < 10) {
+    return { valid: false, message: "السبب مطلوب ويجب ألا يقل عن 10 أحرف." };
+  }
+  if (trimmed.length > 1000) {
+    return { valid: false, message: "السبب طويل جداً (الحد الأقصى 1000 حرف)." };
+  }
+  return { valid: true, reason: trimmed };
+}
+
+// ─────────────────────────────────────────────────────────────
+// 2) mapReviewError
+// ─────────────────────────────────────────────────────────────
+
+export type ReviewErrorResponse = {
+  status: 400 | 403 | 404 | 409 | 500;
+  code: string;
+  message: string;
+};
+
+/**
+ * تحويل أخطاء دالة review_task_assignment إلى استجابة HTTP:
+ * - ASSIGNMENT_NOT_FOUND و TASK_NOT_FOUND → 404
+ * - NOT_SUBMITTED → 409
+ * - SELF_REVIEW → 403
+ * - NOTES_REQUIRED و INVALID_HOURS و INVALID_DECISION → 400
+ * - أي شيء آخر → 500 برسالة عامة
+ */
+export function mapReviewError(message: string): ReviewErrorResponse {
+  if (
+    message.startsWith("ASSIGNMENT_NOT_FOUND") ||
+    message.startsWith("TASK_NOT_FOUND")
+  ) {
+    const code = message.split(":")[0].trim();
+    const msg =
+      code === "TASK_NOT_FOUND"
+        ? "المهمة المرتبطة بالسجل غير موجودة."
+        : "سجل التكليف المطلوب غير موجود.";
+    return { status: 404, code, message: msg };
+  }
+
+  if (message.startsWith("NOT_SUBMITTED")) {
+    return {
+      status: 409,
+      code: "NOT_SUBMITTED",
+      message: "سجل التكليف ليس بحالة التسليم أو تغيرت حالته.",
+    };
+  }
+
+  if (message.startsWith("SELF_REVIEW")) {
+    return {
+      status: 403,
+      code: "SELF_REVIEW",
+      message: "لا يجوز مراجعة مهمتك بنفسك.",
+    };
+  }
+
+  if (message.startsWith("NOTES_REQUIRED")) {
+    return {
+      status: 400,
+      code: "NOTES_REQUIRED",
+      message: "الملاحظات مطلوبة ولا تقل عن 10 أحرف عند طلب التعديل أو الرفض النهائي.",
+    };
+  }
+
+  if (message.startsWith("INVALID_HOURS")) {
+    return {
+      status: 400,
+      code: "INVALID_HOURS",
+      message: "الساعات المعتمدة يجب أن تكون بين 0.25 و 24 ومضاعف دقيق لـ 0.25.",
+    };
+  }
+
+  if (message.startsWith("INVALID_DECISION")) {
+    return {
+      status: 400,
+      code: "INVALID_DECISION",
+      message: "قرار المراجعة غير صالح (يجب أن يكون approve أو revise أو reject_final).",
+    };
+  }
+
+  // أي خطأ آخر غير متوقع
+  return {
+    status: 500,
+    code: "INTERNAL_ERROR",
+    message: "حدث خطأ غير متوقع أثناء معالجة المراجعة.",
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// 3) decideAssignmentAction
+// ─────────────────────────────────────────────────────────────
+
+export type AssignmentActionType = "decline" | "withdraw" | "submit";
+
+export type AssignmentActor = {
+  id: string;
+  status: string;
+};
+
+export type TargetAssignment = {
+  id: string;
+  user_id: string;
+  status: string;
+};
+
+export type AssignmentActionDecision =
+  | { allowed: true }
+  | { allowed: false; reason: string; message: string; statusCode: 403 | 409 };
+
+/**
+ * تحديد صلاحية تنفيذ الإجراءات على التكليف (decline, withdraw, submit):
+ * - صاحب التكليف فقط.
+ * - العضو يجب أن يكون حسابه نشطاً (status === "active").
+ * - decline: من حالة offered فقط.
+ * - withdraw: من حالة in_progress أو needs_revision.
+ * - submit: من حالة in_progress أو needs_revision.
+ */
+export function decideAssignmentAction(
+  actor: AssignmentActor,
+  assignment: TargetAssignment,
+  action: AssignmentActionType
+): AssignmentActionDecision {
+  // فحص الملكية: صاحب التكليف فقط
+  if (actor.id !== assignment.user_id) {
+    return {
+      allowed: false,
+      reason: "not_owner",
+      message: "لا يمكنك تنفيذ هذا الإجراء إلا على تكليفك الخاص.",
+      statusCode: 403,
+    };
+  }
+
+  // فحص حالة العضو: يجب أن يكون نشطاً
+  if (String(actor.status ?? "").toLowerCase() !== "active") {
+    return {
+      allowed: false,
+      reason: "inactive_user",
+      message: "حسابك غير نشط.",
+      statusCode: 403,
+    };
+  }
+
+  if (action === "decline") {
+    if (assignment.status !== "offered") {
+      return {
+        allowed: false,
+        reason: "invalid_status",
+        message: "يمكنك الاعتذار عن التكليف عندما يكون معروضاً عليك فقط (offered).",
+        statusCode: 409,
+      };
+    }
+    return { allowed: true };
+  }
+
+  if (action === "withdraw") {
+    if (
+      assignment.status !== "in_progress" &&
+      assignment.status !== "needs_revision"
+    ) {
+      return {
+        allowed: false,
+        reason: "invalid_status",
+        message: "الانسحاب متاح فقط عندما تكون المهمة قيد التنفيذ أو قيد التعديل.",
+        statusCode: 409,
+      };
+    }
+    return { allowed: true };
+  }
+
+  if (action === "submit") {
+    if (
+      assignment.status !== "in_progress" &&
+      assignment.status !== "needs_revision"
+    ) {
+      return {
+        allowed: false,
+        reason: "invalid_status",
+        message: "تسليم المهمة متاح فقط عندما تكون قيد التنفيذ أو قيد التعديل.",
+        statusCode: 409,
+      };
+    }
+    return { allowed: true };
+  }
+
+  return {
+    allowed: false,
+    reason: "invalid_action",
+    message: "إجراء التكليف غير صالح.",
+    statusCode: 403,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// 4) decideReviewPermission
+// ─────────────────────────────────────────────────────────────
+
+export type ReviewerUser = {
+  id: string;
+  role: UserRole;
+  departmentId: string | null;
+};
+
+export type AssignmentOwnerUser = {
+  id: string;
+  role: UserRole;
+  departmentId: string | null;
+};
+
+export type ReviewPermissionDecision =
+  | { allowed: true }
+  | { allowed: false; reason: string; message: string };
+
+/**
+ * تحديد صلاحية مراجعة التكليف (دالة نقية):
+ * - المتطوع لا يملك صلاحية المراجعة.
+ * - لا أحد يراجع تكليفه بنفسه إلا SUPER_ADMIN الوحيد النشط في النظام (soleActiveSuperAdmin).
+ * - رئيس القسم (DEPARTMENT_HEAD): يراجع تكليفات قسمه فقط (تطابق القسم مع العضو أو المهمة).
+ * - HR و ADMIN: يراجعون الجميع غير أنفسهم.
+ * - SUPER_ADMIN: يراجع الجميع غير نفسه إلا إن كان الوحيد النشط.
+ */
+export function decideReviewPermission(
+  reviewer: ReviewerUser,
+  assignmentOwner: AssignmentOwnerUser,
+  taskDepartmentId: string | null,
+  soleActiveSuperAdmin: boolean = false
+): ReviewPermissionDecision {
+  if (reviewer.role === "VOLUNTEER") {
+    return {
+      allowed: false,
+      reason: "role_not_allowed",
+      message: "المتطوع لا يملك صلاحية مراجعة المهام.",
+    };
+  }
+
+  // المراجعة الذاتية
+  if (reviewer.id === assignmentOwner.id) {
+    if (reviewer.role === "SUPER_ADMIN" && soleActiveSuperAdmin) {
+      return { allowed: true };
+    }
+    return {
+      allowed: false,
+      reason: "self_review",
+      message: "لا يجوز مراجعة مهمتك بنفسك.",
+    };
+  }
+
+  // رئيس القسم: تكليفات قسمه فقط
+  if (reviewer.role === "DEPARTMENT_HEAD") {
+    if (!reviewer.departmentId) {
+      return {
+        allowed: false,
+        reason: "department_mismatch",
+        message: "يجب أن ينتمي رئيس القسم إلى قسم لمراجعة التكليفات.",
+      };
+    }
+
+    const matchesOwnerDept =
+      assignmentOwner.departmentId === reviewer.departmentId;
+    const matchesTaskDept = taskDepartmentId === reviewer.departmentId;
+
+    if (!matchesOwnerDept && !matchesTaskDept) {
+      return {
+        allowed: false,
+        reason: "department_mismatch",
+        message: "رئيس القسم يراجع تكليفات أعضاء قسمه أو مهام قسمه فقط.",
+      };
+    }
+
+    return { allowed: true };
+  }
+
+  // HR و ADMIN
+  if (reviewer.role === "HR" || reviewer.role === "ADMIN") {
+    return { allowed: true };
+  }
+
+  // SUPER_ADMIN
+  if (reviewer.role === "SUPER_ADMIN") {
+    return { allowed: true };
+  }
+
+  return {
+    allowed: false,
+    reason: "role_not_allowed",
+    message: "لا تملك الصلاحية لمراجعة هذا التكليف.",
+  };
+}
