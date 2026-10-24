@@ -159,8 +159,31 @@ export async function POST(
     );
   }
 
-  // 6) تحديث المستخدم المستهدف في جدول tasks (متفائل: يتحقق من lifecycle_status وtarget_user_id الحالي)
   const prevTargetUserId = assignment.user_id;
+
+  // 6) التحقق من عدم وجود سجل سابق للعضو المستهدف على هذه المهمة (أي حالة) — قبل أي تعديل
+  const { data: existingCheck, error: existCheckErr } = await supabase
+    .from("task_assignments")
+    .select("id")
+    .eq("task_id", taskObj.id)
+    .eq("user_id", targetUser.id)
+    .maybeSingle();
+
+  if (existCheckErr) {
+    return NextResponse.json(
+      { error: "تعذر التحقق من سجلات التكليف." },
+      { status: 500 }
+    );
+  }
+
+  if (existingCheck) {
+    return NextResponse.json(
+      { error: "لهذا العضو سجل سابق على المهمة." },
+      { status: 409 }
+    );
+  }
+
+  // 7) تحديث المستخدم المستهدف في جدول tasks (متفائل: يتحقق من lifecycle_status وtarget_user_id الحالي)
   const { data: updatedTask, error: taskUpdateErr } = await supabase
     .from("tasks")
     .update({
@@ -187,38 +210,6 @@ export async function POST(
     );
   }
 
-  // 7) التحقق من عدم وجود سجل سابق للعضو المستهدف على هذه المهمة (أي حالة)
-  const { data: existingCheck, error: existCheckErr } = await supabase
-    .from("task_assignments")
-    .select("id")
-    .eq("task_id", taskObj.id)
-    .eq("user_id", targetUser.id)
-    .maybeSingle();
-
-  if (existCheckErr) {
-    // تراجع عن تحديث المهمة
-    await supabase
-      .from("tasks")
-      .update({ target_user_id: prevTargetUserId })
-      .eq("id", taskObj.id);
-    return NextResponse.json(
-      { error: "تعذر التحقق من سجلات التكليف." },
-      { status: 500 }
-    );
-  }
-
-  if (existingCheck) {
-    // تراجع عن تحديث المهمة
-    await supabase
-      .from("tasks")
-      .update({ target_user_id: prevTargetUserId })
-      .eq("id", taskObj.id);
-    return NextResponse.json(
-      { error: "لهذا العضو سجل سابق على المهمة." },
-      { status: 409 }
-    );
-  }
-
   // 8 مؤقت) إنشاء سجل التكليف الجديد (offered)
   const { data: insertedAsgn, error: asgnInsertErr } = await supabase
     .from("task_assignments")
@@ -236,7 +227,8 @@ export async function POST(
     await supabase
       .from("tasks")
       .update({ target_user_id: prevTargetUserId })
-      .eq("id", taskObj.id);
+      .eq("id", taskObj.id)
+      .eq("target_user_id", targetUser.id);
 
     return NextResponse.json(
       { error: "تعذر إنشاء سجل التكليف للعضو الجديد." },
@@ -254,7 +246,8 @@ export async function POST(
     const { error: rTaskErr } = await supabase
       .from("tasks")
       .update({ target_user_id: prevTargetUserId })
-      .eq("id", taskObj.id);
+      .eq("id", taskObj.id)
+      .eq("target_user_id", targetUser.id);
     if (rTaskErr) taskRollbackOk = false;
 
     const { error: rDelErr } = await supabase

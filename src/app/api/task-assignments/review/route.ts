@@ -120,9 +120,6 @@ export async function GET(request: Request) {
     const ownerObj = Array.isArray(assignment.user)
       ? assignment.user[0]
       : assignment.user;
-    const taskObj = Array.isArray(assignment.task)
-      ? assignment.task[0]
-      : assignment.task;
 
     if (!ownerObj) return false;
 
@@ -131,7 +128,6 @@ export async function GET(request: Request) {
       role: ownerObj.role as UserRole,
       departmentId: (ownerObj.department_id as string | null) ?? null,
     };
-    const taskDeptId = taskObj?.department_id ?? null;
 
     const decision = decideReviewPermission(
       reviewer,

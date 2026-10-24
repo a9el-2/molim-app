@@ -73,10 +73,6 @@ export async function POST(
         id,
         role,
         department_id
-      ),
-      task:tasks (
-        id,
-        department_id
       )
     `)
     .eq("id", id)
@@ -92,13 +88,9 @@ export async function POST(
   const ownerObj = Array.isArray(assignment.user)
     ? assignment.user[0]
     : assignment.user;
-  const taskObj = Array.isArray(assignment.task)
-    ? assignment.task[0]
-    : assignment.task;
 
   const ownerRole = ownerObj.role as UserRole;
   const ownerDeptId = ownerObj.department_id as string | null;
-  const taskDeptId = taskObj?.department_id ?? null;
 
   // 3) التحقق من وجود سوبر أدمن آخر نشط إذا كان المراجع سوبر أدمن
   let soleActiveSuperAdmin = false;
