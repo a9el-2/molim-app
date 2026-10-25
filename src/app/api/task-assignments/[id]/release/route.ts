@@ -82,7 +82,8 @@ export async function POST(
       task:tasks (
         id,
         created_by,
-        department_id
+        department_id,
+        target_type
       )
     `)
     .eq("id", id)
@@ -121,6 +122,7 @@ export async function POST(
       id: String(taskObj.id),
       created_by: String(taskObj.created_by),
       department_id: (taskObj.department_id as string | null) ?? null,
+      target_type: (taskObj.target_type as string | null) ?? null,
     },
     {
       id: String(ownerObj.id),

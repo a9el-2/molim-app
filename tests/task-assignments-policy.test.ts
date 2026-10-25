@@ -1204,6 +1204,34 @@ test("decideReleasePermission: متطوع ليس المنشئ يرفض (403)", (
   }
 });
 
+test("decideReleasePermission: مهمة شخصية (target_type='self') يمنع أي شخص عدا المنشئ من سحبها حتى لو كان ADMIN أو HR", () => {
+  const task = { id: "t-self", created_by: "u-owner", target_type: "self" };
+  const owner = { id: "u-owner", departmentId: null };
+
+  for (const role of ["ADMIN", "SUPER_ADMIN", "HR"] as const) {
+    const actor = { id: `u-${role.toLowerCase()}`, role, departmentId: null, status: "active" };
+    const res = decideReleasePermission(actor, task, owner);
+    assert.equal(res.allowed, false);
+    if (!res.allowed) {
+      assert.equal(res.statusCode, 403);
+      assert.equal(res.reason, "personal_task");
+    }
+  }
+});
+
+test("decideReleasePermission: مهمة شخصية (target_type='self') صاحبها يرفض بسحب تكليفه بنفسه (self_release_forbidden)", () => {
+  const actor = { id: "u-owner", role: "VOLUNTEER" as const, departmentId: null, status: "active" };
+  const task = { id: "t-self", created_by: "u-owner", target_type: "self" };
+  const owner = { id: "u-owner", departmentId: null };
+
+  const res = decideReleasePermission(actor, task, owner);
+  assert.equal(res.allowed, false);
+  if (!res.allowed) {
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.reason, "self_release_forbidden");
+  }
+});
+
 // ══════════════════════════════════════════════════════════════
 // decideCancelPermission
 // ══════════════════════════════════════════════════════════════
@@ -1287,4 +1315,26 @@ test("decideCancelPermission: متطوع ليس المنشئ يرفض (403)", ()
     assert.equal(res.statusCode, 403);
     assert.equal(res.reason, "role_not_allowed");
   }
+});
+
+test("decideCancelPermission: مهمة شخصية (target_type='self') يمنع أي شخص عدا المنشئ من إلغائها حتى لو كان ADMIN أو HR", () => {
+  const task = { id: "t-self", created_by: "u-owner", department_id: null, lifecycle_status: "open", target_type: "self" };
+
+  for (const role of ["ADMIN", "SUPER_ADMIN", "HR"] as const) {
+    const actor = { id: `u-${role.toLowerCase()}`, role, departmentId: null, status: "active" };
+    const res = decideCancelPermission(actor, task);
+    assert.equal(res.allowed, false);
+    if (!res.allowed) {
+      assert.equal(res.statusCode, 403);
+      assert.equal(res.reason, "personal_task");
+    }
+  }
+});
+
+test("decideCancelPermission: مهمة شخصية (target_type='self') صاحبها المنشئ يسمح له بإلغائها", () => {
+  const actor = { id: "u-owner", role: "VOLUNTEER" as const, departmentId: null, status: "active" };
+  const task = { id: "t-self", created_by: "u-owner", department_id: null, lifecycle_status: "open", target_type: "self" };
+
+  const res = decideCancelPermission(actor, task);
+  assert.equal(res.allowed, true);
 });

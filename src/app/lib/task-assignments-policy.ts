@@ -951,6 +951,7 @@ export type ReleaseTaskInfo = {
   id: string;
   created_by: string;
   department_id?: string | null;
+  target_type?: string | null;
 };
 
 export type ReleaseAssignmentOwner = {
@@ -989,6 +990,16 @@ export function decideReleasePermission(
       allowed: false,
       reason: "self_release_forbidden",
       message: "لا يجوز سحب تكليفك بنفسك.",
+      statusCode: 403,
+    };
+  }
+
+  // المهام الشخصية لا يسحبها إلا صاحبها (ولا أحد يسحب تكليفه بنفسه أعلاه)
+  if (task.target_type === "self" && task.created_by !== actor.id) {
+    return {
+      allowed: false,
+      reason: "personal_task",
+      message: "لا يمكن سحب مهمة شخصية خاصة بعضو آخر.",
       statusCode: 403,
     };
   }
@@ -1048,6 +1059,7 @@ export type CancelTaskInfo = {
   created_by: string;
   department_id: string | null;
   lifecycle_status?: string | null;
+  target_type?: string | null;
 };
 
 export type CancelDecision =
@@ -1080,6 +1092,16 @@ export function decideCancelPermission(
       reason: "task_not_open",
       message: "المهمة ليست مفتوحة للإلغاء.",
       statusCode: 409,
+    };
+  }
+
+  // المهام الشخصية لا يلغيها إلا صاحبها
+  if (task.target_type === "self" && task.created_by !== actor.id) {
+    return {
+      allowed: false,
+      reason: "personal_task",
+      message: "لا يمكن إلغاء مهمة شخصية خاصة بعضو آخر.",
+      statusCode: 403,
     };
   }
 

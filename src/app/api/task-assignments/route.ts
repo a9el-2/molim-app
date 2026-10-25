@@ -113,7 +113,8 @@ export async function GET(request: Request) {
           priority,
           due_date,
           created_by,
-          required_assignees
+          required_assignees,
+          target_type
         )
       `
       )
@@ -127,7 +128,13 @@ export async function GET(request: Request) {
       );
     }
 
-    return NextResponse.json({ ok: true, assignments: assignments ?? [] });
+    // استثناء المهام الشخصية (target_type='self') الخاصة بالمستخدم الآخر
+    const filteredAssignments = (assignments ?? []).filter((a) => {
+      const t = Array.isArray(a.task) ? a.task[0] : a.task;
+      return t?.target_type !== "self";
+    });
+
+    return NextResponse.json({ ok: true, assignments: filteredAssignments });
   }
 
   // للمستخدم الحالي

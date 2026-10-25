@@ -77,10 +77,11 @@ export async function GET(request: Request) {
     }
   }
 
-  // 3) الاستعلام 1: جلب الأعضاء المستهدفين
+  // 3) الاستعلام 1: جلب الأعضاء المستهدفين (النشطين فقط)
   let usersQuery = supabase
     .from("users")
-    .select("id, first_name, father_name, last_name, role, department_id, status");
+    .select("id, first_name, father_name, last_name, role, department_id, status")
+    .eq("status", "active");
 
   if (viewerRole === "DEPARTMENT_HEAD") {
     usersQuery = usersQuery.eq("department_id", viewerDeptId);
@@ -126,7 +127,8 @@ export async function GET(request: Request) {
       status,
       task:tasks (
         id,
-        due_date
+        due_date,
+        target_type
       )
     `)
     .in("user_id", userIds)
@@ -151,6 +153,13 @@ export async function GET(request: Request) {
 
   for (const row of assignments ?? []) {
     const uid = String(row.user_id);
+    const taskObj = Array.isArray(row.task) ? row.task[0] : row.task;
+
+    // استثناء المهام الشخصية (target_type='self') لكل الأعضاء عدا المشاهد نفسه
+    if (uid !== currentUser.id && taskObj?.target_type === "self") {
+      continue;
+    }
+
     if (!statsMap.has(uid)) {
       statsMap.set(uid, { active: 0, overdue: 0, approved: 0 });
     }
@@ -161,7 +170,6 @@ export async function GET(request: Request) {
     } else if (row.status === "in_progress" || row.status === "needs_revision") {
       userStats.active += 1;
 
-      const taskObj = Array.isArray(row.task) ? row.task[0] : row.task;
       const dueDate = taskObj?.due_date;
       if (typeof dueDate === "string" && dueDate.trim()) {
         if (dueDate.trim() < todayRiyadh) {

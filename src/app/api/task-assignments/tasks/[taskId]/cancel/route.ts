@@ -70,7 +70,7 @@ export async function POST(
   // 3) جلب بيانات المهمة
   const { data: task, error: taskErr } = await supabase
     .from("tasks")
-    .select("id, created_by, department_id, lifecycle_status")
+    .select("id, created_by, department_id, lifecycle_status, target_type")
     .eq("id", taskId)
     .maybeSingle();
 
@@ -94,6 +94,7 @@ export async function POST(
       created_by: String(task.created_by),
       department_id: (task.department_id as string | null) ?? null,
       lifecycle_status: task.lifecycle_status as string | null,
+      target_type: (task.target_type as string | null) ?? null,
     }
   );
 
