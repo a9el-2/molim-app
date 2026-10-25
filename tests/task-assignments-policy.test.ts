@@ -14,6 +14,9 @@ import {
   decideAssignmentAction,
   decideReviewPermission,
   decideTaskReassignment,
+  mapManageError,
+  decideReleasePermission,
+  decideCancelPermission,
 } from "../src/app/lib/task-assignments-policy.ts";
 
 // ══════════════════════════════════════════════════════════════
@@ -1076,5 +1079,212 @@ test("decideTaskReassignment: رئيس قسم أنشأ المهمة لكن ال�
   if (!res.allowed) {
     assert.equal(res.statusCode, 403);
     assert.equal(res.reason, "department_mismatch");
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// mapManageError
+// ══════════════════════════════════════════════════════════════
+
+test("mapManageError: تحويل الأخطاء المعروفة إلى رموز HTTP المتوقعة", () => {
+  // REASON_REQUIRED -> 400
+  const r1 = mapManageError("REASON_REQUIRED: السبب قصير جداً");
+  assert.equal(r1.status, 400);
+  assert.equal(r1.code, "REASON_REQUIRED");
+
+  // INVALID_STATUS -> 409
+  const r2 = mapManageError("INVALID_STATUS: لا يمكن تنفيذ الإجراء");
+  assert.equal(r2.status, 409);
+  assert.equal(r2.code, "INVALID_STATUS");
+
+  // ASSIGNMENT_NOT_FOUND -> 404
+  const r3 = mapManageError("ASSIGNMENT_NOT_FOUND: السجل غير موجود");
+  assert.equal(r3.status, 404);
+  assert.equal(r3.code, "ASSIGNMENT_NOT_FOUND");
+
+  // TASK_NOT_FOUND -> 404
+  const r4 = mapManageError("TASK_NOT_FOUND: المهمة غير موجودة");
+  assert.equal(r4.status, 404);
+  assert.equal(r4.code, "TASK_NOT_FOUND");
+
+  // خطأ غير متوقع -> 500
+  const r5 = mapManageError("SOMETHING_WEIRD: خطأ غير متوقع");
+  assert.equal(r5.status, 500);
+  assert.equal(r5.code, "INTERNAL_ERROR");
+});
+
+// ══════════════════════════════════════════════════════════════
+// decideReleasePermission
+// ══════════════════════════════════════════════════════════════
+
+test("decideReleasePermission: الفاعل غير نشط يرفض (403)", () => {
+  const actor = { id: "u-act", role: "ADMIN" as const, departmentId: null, status: "suspended" };
+  const task = { id: "t-1", created_by: "u-creator" };
+  const owner = { id: "u-owner", departmentId: "d-1" };
+
+  const res = decideReleasePermission(actor, task, owner);
+  assert.equal(res.allowed, false);
+  if (!res.allowed) {
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.reason, "inactive_actor");
+  }
+});
+
+test("decideReleasePermission: لا أحد يسحب تكليفه بنفسه يرفض (403)", () => {
+  const actor = { id: "u-owner", role: "ADMIN" as const, departmentId: "d-1", status: "active" };
+  const task = { id: "t-1", created_by: "u-owner" };
+  const owner = { id: "u-owner", departmentId: "d-1" };
+
+  const res = decideReleasePermission(actor, task, owner);
+  assert.equal(res.allowed, false);
+  if (!res.allowed) {
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.reason, "self_release_forbidden");
+  }
+});
+
+test("decideReleasePermission: منشئ المهمة يسمح له بسحب تكليف غيره", () => {
+  const actor = { id: "u-creator", role: "VOLUNTEER" as const, departmentId: "d-1", status: "active" };
+  const task = { id: "t-1", created_by: "u-creator" };
+  const owner = { id: "u-other", departmentId: "d-2" };
+
+  const res = decideReleasePermission(actor, task, owner);
+  assert.equal(res.allowed, true);
+});
+
+test("decideReleasePermission: ADMIN و SUPER_ADMIN و HR يسمح لهم بسحب أي تكليف (ليس لأنفسهم)", () => {
+  const task = { id: "t-1", created_by: "u-creator" };
+  const owner = { id: "u-owner", departmentId: "d-other" };
+
+  for (const role of ["ADMIN", "SUPER_ADMIN", "HR"] as const) {
+    const actor = { id: `u-${role.toLowerCase()}`, role, departmentId: null, status: "active" };
+    const res = decideReleasePermission(actor, task, owner);
+    assert.equal(res.allowed, true, `يُتوقع السماح لدور ${role}`);
+  }
+});
+
+test("decideReleasePermission: رئيس قسم يسحب لعضو قسمه فقط", () => {
+  const actor = { id: "u-head", role: "DEPARTMENT_HEAD" as const, departmentId: "dept-tech", status: "active" };
+  const task = { id: "t-1", created_by: "u-creator" };
+
+  const sameDeptOwner = { id: "u-1", departmentId: "dept-tech" };
+  const otherDeptOwner = { id: "u-2", departmentId: "dept-media" };
+  const nullDeptOwner = { id: "u-3", departmentId: null };
+
+  // نفس القسم -> مسموح
+  assert.equal(decideReleasePermission(actor, task, sameDeptOwner).allowed, true);
+
+  // قسم آخر -> مرفوض
+  const resOther = decideReleasePermission(actor, task, otherDeptOwner);
+  assert.equal(resOther.allowed, false);
+  if (!resOther.allowed) {
+    assert.equal(resOther.statusCode, 403);
+    assert.equal(resOther.reason, "department_mismatch");
+  }
+
+  // قسم فارغ -> مرفوض
+  const resNull = decideReleasePermission(actor, task, nullDeptOwner);
+  assert.equal(resNull.allowed, false);
+  if (!resNull.allowed) {
+    assert.equal(resNull.statusCode, 403);
+    assert.equal(resNull.reason, "department_mismatch");
+  }
+});
+
+test("decideReleasePermission: متطوع ليس المنشئ يرفض (403)", () => {
+  const actor = { id: "u-vol", role: "VOLUNTEER" as const, departmentId: "d-1", status: "active" };
+  const task = { id: "t-1", created_by: "u-creator" };
+  const owner = { id: "u-owner", departmentId: "d-1" };
+
+  const res = decideReleasePermission(actor, task, owner);
+  assert.equal(res.allowed, false);
+  if (!res.allowed) {
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.reason, "role_not_allowed");
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// decideCancelPermission
+// ══════════════════════════════════════════════════════════════
+
+test("decideCancelPermission: الفاعل غير نشط يرفض (403)", () => {
+  const actor = { id: "u-act", role: "ADMIN" as const, departmentId: null, status: "suspended" };
+  const task = { id: "t-1", created_by: "u-act", department_id: null, lifecycle_status: "open" };
+
+  const res = decideCancelPermission(actor, task);
+  assert.equal(res.allowed, false);
+  if (!res.allowed) {
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.reason, "inactive_actor");
+  }
+});
+
+test("decideCancelPermission: المهمة ليست مفتوحة ترفض (409)", () => {
+  const actor = { id: "u-act", role: "ADMIN" as const, departmentId: null, status: "active" };
+  const task = { id: "t-1", created_by: "u-act", department_id: null, lifecycle_status: "completed" };
+
+  const res = decideCancelPermission(actor, task);
+  assert.equal(res.allowed, false);
+  if (!res.allowed) {
+    assert.equal(res.statusCode, 409);
+    assert.equal(res.reason, "task_not_open");
+  }
+});
+
+test("decideCancelPermission: المنشئ يسمح له بإلغاء مهمته", () => {
+  const actor = { id: "u-creator", role: "VOLUNTEER" as const, departmentId: "d-1", status: "active" };
+  const task = { id: "t-1", created_by: "u-creator", department_id: "d-2", lifecycle_status: "open" };
+
+  const res = decideCancelPermission(actor, task);
+  assert.equal(res.allowed, true);
+});
+
+test("decideCancelPermission: ADMIN و SUPER_ADMIN و HR يسمح لهم بإلغاء أي مهمة مفتوحة", () => {
+  const task = { id: "t-1", created_by: "u-creator", department_id: "d-any", lifecycle_status: "open" };
+
+  for (const role of ["ADMIN", "SUPER_ADMIN", "HR"] as const) {
+    const actor = { id: `u-${role.toLowerCase()}`, role, departmentId: null, status: "active" };
+    const res = decideCancelPermission(actor, task);
+    assert.equal(res.allowed, true, `يُتوقع السماح لدور ${role}`);
+  }
+});
+
+test("decideCancelPermission: رئيس قسم يلغي فقط مهمة مطابقة لقسمه", () => {
+  const actor = { id: "u-head", role: "DEPARTMENT_HEAD" as const, departmentId: "dept-tech", status: "active" };
+
+  const sameDeptTask = { id: "t-1", created_by: "u-other", department_id: "dept-tech", lifecycle_status: "open" };
+  const otherDeptTask = { id: "t-2", created_by: "u-other", department_id: "dept-media", lifecycle_status: "open" };
+  const nullDeptTask = { id: "t-3", created_by: "u-other", department_id: null, lifecycle_status: "open" };
+
+  // نفس القسم -> مسموح
+  assert.equal(decideCancelPermission(actor, sameDeptTask).allowed, true);
+
+  // قسم آخر -> مرفوض
+  const resOther = decideCancelPermission(actor, otherDeptTask);
+  assert.equal(resOther.allowed, false);
+  if (!resOther.allowed) {
+    assert.equal(resOther.statusCode, 403);
+    assert.equal(resOther.reason, "department_mismatch");
+  }
+
+  // قسم فارغ -> مرفوض
+  const resNull = decideCancelPermission(actor, nullDeptTask);
+  assert.equal(resNull.allowed, false);
+  if (!resNull.allowed) {
+    assert.equal(resNull.statusCode, 403);
+    assert.equal(resNull.reason, "department_mismatch");
+  }
+});
+
+test("decideCancelPermission: متطوع ليس المنشئ يرفض (403)", () => {
+  const actor = { id: "u-vol", role: "VOLUNTEER" as const, departmentId: "d-1", status: "active" };
+  const task = { id: "t-1", created_by: "u-creator", department_id: "d-1", lifecycle_status: "open" };
+
+  const res = decideCancelPermission(actor, task);
+  assert.equal(res.allowed, false);
+  if (!res.allowed) {
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.reason, "role_not_allowed");
   }
 });

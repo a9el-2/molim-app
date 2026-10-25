@@ -882,3 +882,242 @@ export function decideTaskReassignment(
 
   return { allowed: true };
 }
+
+// ─────────────────────────────────────────────────────────────
+// 6) mapManageError
+// ─────────────────────────────────────────────────────────────
+
+export type ManageErrorResponse = {
+  status: 400 | 404 | 409 | 500;
+  code: string;
+  message: string;
+};
+
+/**
+ * تحويل أخطاء دوال إدارة وسحب وإلغاء المهام (0004) إلى استجابة HTTP:
+ * - REASON_REQUIRED → 400
+ * - INVALID_STATUS → 409
+ * - ASSIGNMENT_NOT_FOUND و TASK_NOT_FOUND → 404
+ * - غير ذلك → 500 برسالة عامة
+ */
+export function mapManageError(message: string): ManageErrorResponse {
+  if (message.startsWith("REASON_REQUIRED")) {
+    return {
+      status: 400,
+      code: "REASON_REQUIRED",
+      message: "السبب مطلوب ويجب ألا يقل عن 10 أحرف.",
+    };
+  }
+
+  if (message.startsWith("INVALID_STATUS")) {
+    return {
+      status: 409,
+      code: "INVALID_STATUS",
+      message: "لا يمكن تنفيذ هذا الإجراء في الحالة الحالية.",
+    };
+  }
+
+  if (
+    message.startsWith("ASSIGNMENT_NOT_FOUND") ||
+    message.startsWith("TASK_NOT_FOUND")
+  ) {
+    const code = message.split(":")[0].trim();
+    const msg =
+      code === "TASK_NOT_FOUND"
+        ? "المهمة المطلوبة غير موجودة."
+        : "سجل التكليف المطلوب غير موجود.";
+    return { status: 404, code, message: msg };
+  }
+
+  return {
+    status: 500,
+    code: "INTERNAL_ERROR",
+    message: "حدث خطأ غير متوقع أثناء معالجة العملية.",
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// 7) decideReleasePermission
+// ─────────────────────────────────────────────────────────────
+
+export type ReleaseActor = {
+  id: string;
+  role: UserRole;
+  departmentId: string | null;
+  status: string;
+};
+
+export type ReleaseTaskInfo = {
+  id: string;
+  created_by: string;
+  department_id?: string | null;
+};
+
+export type ReleaseAssignmentOwner = {
+  id: string;
+  departmentId: string | null;
+};
+
+export type ReleaseDecision =
+  | { allowed: true }
+  | { allowed: false; reason: string; message: string; statusCode: 403 | 409 };
+
+/**
+ * تحديد صلاحية سحب تكليف مهمة من عضو (release_task_assignment):
+ * - الفاعل يجب أن يكون نشطاً (active).
+ * - لا يجوز لأحد سحب تكليفه بنفسه (self-release).
+ * - الصلاحية لـ: منشئ المهمة (tasks.created_by) أو ADMIN أو SUPER_ADMIN أو HR.
+ * - رئيس القسم (DEPARTMENT_HEAD) يسحب فقط لعضو قسمه (يشترط تطابق departmentId).
+ */
+export function decideReleasePermission(
+  actor: ReleaseActor,
+  task: ReleaseTaskInfo,
+  assignmentOwner: ReleaseAssignmentOwner
+): ReleaseDecision {
+  if (String(actor.status ?? "").toLowerCase() !== "active") {
+    return {
+      allowed: false,
+      reason: "inactive_actor",
+      message: "حسابك غير نشط.",
+      statusCode: 403,
+    };
+  }
+
+  // لا أحد يسحب تكليفه بنفسه
+  if (actor.id === assignmentOwner.id) {
+    return {
+      allowed: false,
+      reason: "self_release_forbidden",
+      message: "لا يجوز سحب تكليفك بنفسك.",
+      statusCode: 403,
+    };
+  }
+
+  // منشئ المهمة
+  if (task.created_by === actor.id) {
+    return { allowed: true };
+  }
+
+  // الإدارة العليا والموارد البشرية
+  if (
+    actor.role === "ADMIN" ||
+    actor.role === "SUPER_ADMIN" ||
+    actor.role === "HR"
+  ) {
+    return { allowed: true };
+  }
+
+  // رئيس القسم لأعضاء قسمه فقط
+  if (actor.role === "DEPARTMENT_HEAD") {
+    if (
+      actor.departmentId !== null &&
+      actor.departmentId !== undefined &&
+      actor.departmentId === assignmentOwner.departmentId
+    ) {
+      return { allowed: true };
+    }
+    return {
+      allowed: false,
+      reason: "department_mismatch",
+      message: "رئيس القسم يمكنه سحب تكليفات أعضاء قسمه فقط.",
+      statusCode: 403,
+    };
+  }
+
+  return {
+    allowed: false,
+    reason: "role_not_allowed",
+    message: "غير مصرح لك بسحب هذا التكليف.",
+    statusCode: 403,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// 8) decideCancelPermission
+// ─────────────────────────────────────────────────────────────
+
+export type CancelActor = {
+  id: string;
+  role: UserRole;
+  departmentId: string | null;
+  status: string;
+};
+
+export type CancelTaskInfo = {
+  id: string;
+  created_by: string;
+  department_id: string | null;
+  lifecycle_status?: string | null;
+};
+
+export type CancelDecision =
+  | { allowed: true }
+  | { allowed: false; reason: string; message: string; statusCode: 403 | 409 };
+
+/**
+ * تحديد صلاحية إلغاء مهمة (cancel_task):
+ * - الفاعل يجب أن يكون نشطاً (active).
+ * - إذا كانت المهمة ليست مفتوحة (lifecycle_status !== 'open') تُرفض (409).
+ * - الصلاحية لـ: منشئ المهمة (tasks.created_by) أو ADMIN أو SUPER_ADMIN أو HR.
+ * - رئيس القسم (DEPARTMENT_HEAD) يلغي فقط مهام قسمه (يشترط تطابق departmentId).
+ */
+export function decideCancelPermission(
+  actor: CancelActor,
+  task: CancelTaskInfo
+): CancelDecision {
+  if (String(actor.status ?? "").toLowerCase() !== "active") {
+    return {
+      allowed: false,
+      reason: "inactive_actor",
+      message: "حسابك غير نشط.",
+      statusCode: 403,
+    };
+  }
+
+  if (task.lifecycle_status && task.lifecycle_status !== "open") {
+    return {
+      allowed: false,
+      reason: "task_not_open",
+      message: "المهمة ليست مفتوحة للإلغاء.",
+      statusCode: 409,
+    };
+  }
+
+  // منشئ المهمة
+  if (task.created_by === actor.id) {
+    return { allowed: true };
+  }
+
+  // الإدارة العليا والموارد البشرية
+  if (
+    actor.role === "ADMIN" ||
+    actor.role === "SUPER_ADMIN" ||
+    actor.role === "HR"
+  ) {
+    return { allowed: true };
+  }
+
+  // رئيس القسم لمهام قسمه فقط
+  if (actor.role === "DEPARTMENT_HEAD") {
+    if (
+      actor.departmentId !== null &&
+      actor.departmentId !== undefined &&
+      actor.departmentId === task.department_id
+    ) {
+      return { allowed: true };
+    }
+    return {
+      allowed: false,
+      reason: "department_mismatch",
+      message: "رئيس القسم يمكنه إلغاء مهام قسمه فقط.",
+      statusCode: 403,
+    };
+  }
+
+  return {
+    allowed: false,
+    reason: "role_not_allowed",
+    message: "غير مصرح لك بإلغاء هذه المهمة.",
+    statusCode: 403,
+  };
+}
