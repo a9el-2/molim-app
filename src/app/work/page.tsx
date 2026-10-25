@@ -124,7 +124,7 @@ function getAssignmentStatusLabel(status: string): string {
       return "مطلوب تعديل";
     case "approved":
       return "معتمدة";
-    case "rejected":
+    case "rejected_final":
       return "مرفوضة نهائياً";
     case "declined":
       return "معتذر عنها";
@@ -149,7 +149,7 @@ function getAssignmentBadgeClass(status: string): string {
       return "bg-orange-500/10 text-orange-700 dark:text-orange-300 border border-orange-500/20";
     case "approved":
       return "bg-green-500/10 text-green-700 dark:text-green-300 border border-green-500/20";
-    case "rejected":
+    case "rejected_final":
       return "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20";
     case "declined":
     case "withdrawn":
@@ -647,9 +647,10 @@ export default function WorkPage() {
                   </Card>
                 ) : (
                   availableTasks.map((t) => {
+                    const cardId = `avail-${t.id}`;
                     const isUrgent = t.priority === "urgent";
-                    const isActing = actionLoadingId === t.id;
-                    const feedback = actionFeedback?.id === t.id ? actionFeedback : null;
+                    const isActing = actionLoadingId === cardId;
+                    const feedback = actionFeedback?.id === cardId ? actionFeedback : null;
 
                     return (
                       <Card key={t.id} className="p-4 sm:p-5">
@@ -685,7 +686,7 @@ export default function WorkPage() {
                             <Button
                               variant="primary"
                               disabled={isActing}
-                              onClick={() => handleClaim(t.id, t.id)}
+                              onClick={() => handleClaim(t.id, cardId)}
                               className="text-xs px-4"
                             >
                               {isActing ? "جاري الاستلام..." : "استلام"}
