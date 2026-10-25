@@ -13,6 +13,25 @@ import type { UserRole } from "./roles.ts";
 import type { TaskDbTargetType } from "./tasks-payload.ts";
 
 // ─────────────────────────────────────────────────────────────
+// formatUserFullName
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * تنسيق الاسم الكامل للمستخدم من أجزائه مع توفير قيمة بديلة عند الغياب.
+ */
+export function formatUserFullName(
+  firstName?: string | null,
+  fatherName?: string | null,
+  lastName?: string | null,
+  fallback = ""
+): string {
+  const parts = [firstName, fatherName, lastName]
+    .map((p) => (typeof p === "string" ? p.trim() : ""))
+    .filter(Boolean);
+  return parts.length > 0 ? parts.join(" ") : fallback;
+}
+
+// ─────────────────────────────────────────────────────────────
 // SEAT_STATUSES: الحالات التي تُعد مقعداً مشغولاً للمهمة
 // المرجع: db/planned/0003b_tasks_assignments.sql
 // ─────────────────────────────────────────────────────────────

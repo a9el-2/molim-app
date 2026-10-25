@@ -5,6 +5,7 @@ import {
   canViewTaskAssignments,
   isTaskAvailableForUser,
   SEAT_STATUSES,
+  formatUserFullName,
   type ViewerInfo,
   type TargetUserInfo,
   type UserAvailableCandidate,
@@ -298,7 +299,7 @@ export async function GET(request: Request) {
 
   const declinedMap = new Map<
     string,
-    Array<{ id: string; user_id: string; status_reason: string | null; updated_at: string }>
+    Array<{ id: string; user_id: string; user_name: string; status_reason: string | null; updated_at: string }>
   >();
 
   if (personTaskIds.length > 0) {
@@ -308,12 +309,33 @@ export async function GET(request: Request) {
       .in("task_id", personTaskIds)
       .eq("status", "declined");
 
+    const declinedUserIds = Array.from(
+      new Set((declinedRows ?? []).map((r) => String(r.user_id)))
+    );
+
+    const userNameMap = new Map<string, string>();
+    if (declinedUserIds.length > 0) {
+      const { data: usersData } = await supabase
+        .from("users")
+        .select("id, first_name, father_name, last_name")
+        .in("id", declinedUserIds);
+
+      for (const u of usersData ?? []) {
+        userNameMap.set(
+          String(u.id),
+          formatUserFullName(u.first_name, u.father_name, u.last_name, String(u.id))
+        );
+      }
+    }
+
     for (const row of declinedRows ?? []) {
       const tid = String(row.task_id);
+      const uid = String(row.user_id);
       if (!declinedMap.has(tid)) declinedMap.set(tid, []);
       declinedMap.get(tid)!.push({
         id: String(row.id),
-        user_id: String(row.user_id),
+        user_id: uid,
+        user_name: userNameMap.get(uid) || uid,
         status_reason: row.status_reason as string | null,
         updated_at: String(row.updated_at),
       });

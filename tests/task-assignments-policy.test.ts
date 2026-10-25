@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  formatUserFullName,
   SEAT_STATUSES,
   validateNewTaskFields,
   mapClaimError,
@@ -18,6 +19,17 @@ import {
   decideReleasePermission,
   decideCancelPermission,
 } from "../src/app/lib/task-assignments-policy.ts";
+
+// ══════════════════════════════════════════════════════════════
+// formatUserFullName
+// ══════════════════════════════════════════════════════════════
+
+test("formatUserFullName: يدمج الأجزاء الثلاثة ويزيل الفراغات الزائدة", () => {
+  assert.equal(formatUserFullName(" محمد ", " أحمد ", " علي "), "محمد أحمد علي");
+  assert.equal(formatUserFullName("سارة", null, "خالد"), "سارة خالد");
+  assert.equal(formatUserFullName("عبدالله", "", ""), "عبدالله");
+  assert.equal(formatUserFullName(null, null, null, "عضو مجهول"), "عضو مجهول");
+});
 
 // ══════════════════════════════════════════════════════════════
 // SEAT_STATUSES
