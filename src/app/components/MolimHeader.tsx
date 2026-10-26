@@ -81,6 +81,10 @@ export default function MolimHeader() {
       href: "/",
     },
     {
+      title: "المهام والعمل",
+      href: "/work",
+    },
+    {
       title: "المهام",
       href: "/tasks",
     },
