@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import RoleGuard from "../components/RoleGuard";
+import { fetchAgreements } from "../lib/supabase/dto";
 
 type AgreementStatus =
   | "سارية"
@@ -127,6 +128,67 @@ export default function AgreementsPage() {
   const [department, setDepartment] = useState("");
   const [title, setTitle] = useState("");
   const [formError, setFormError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAgreements()
+      .then((res) => {
+        if (
+          cancelled ||
+          !res.ok ||
+          !res.agreements ||
+          res.agreements.length === 0
+        )
+          return;
+
+        const mapped: Agreement[] = res.agreements.map((a, idx) => {
+          const userObj = a.users;
+          const name = userObj
+            ? [userObj.first_name, userObj.father_name, userObj.last_name]
+                .filter(Boolean)
+                .join(" ") || "عضو فريق مُلم"
+            : "عضو فريق مُلم";
+
+          const statusMap: Record<string, AgreementStatus> = {
+            active: "سارية",
+            expired: "منتهية",
+            renewed: "سارية",
+          };
+
+          return {
+            id: idx + 100,
+            volunteerName: name,
+            molimId: a.user_id,
+            department: userObj?.department_id ?? "عام",
+            title: `اتفاقية تطوع — ${
+              a.duration_months === 1
+                ? "شهر واحد"
+                : a.duration_months === 2
+                ? "شهران"
+                : `${a.duration_months} أشهر`
+            }`,
+            status: statusMap[a.status] ?? "سارية",
+            signedDate: a.signed_at
+              ? a.signed_at.split("T")[0].replace(/-/g, "/")
+              : "",
+            expiresAt: a.expires_at
+              ? a.expires_at.split("T")[0].replace(/-/g, "/")
+              : "",
+            createdBy: "النظام",
+            notes:
+              a.notes ??
+              "تم توثيق الاتفاقية إلكترونياً واعتمادها في المنصة.",
+          };
+        });
+
+        setAgreements((prev) => [...mapped, ...prev]);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const activeCount = agreements.filter(
     (agreement) => agreement.status === "سارية"

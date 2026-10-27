@@ -50,6 +50,24 @@ const tools = [
   "ChatGPT",
 ];
 
+const durations = [
+  {
+    value: "1",
+    title: "شهر واحد",
+    description: "اتفاقية تطوع لمدة شهر واحد",
+  },
+  {
+    value: "2",
+    title: "شهران",
+    description: "اتفاقية تطوع لمدة شهرين",
+  },
+  {
+    value: "3",
+    title: "ثلاثة أشهر",
+    description: "الحد الأقصى لمدة الاتفاقية",
+  },
+];
+
 type PickerMode = "countryCode" | "nationality" | "residence" | null;
 
 export default function CompleteProfilePage() {
@@ -74,6 +92,10 @@ export default function CompleteProfilePage() {
     skills: [] as string[],
     tools: [] as string[],
   });
+
+  // حالة الاتفاقية (الخطوة 3)
+  const [agreementDuration, setAgreementDuration] = useState("");
+  const [agreementAgreed, setAgreementAgreed] = useState(false);
 
   // مزامنة مبدئية مع بيانات المستخدم إذا توفرت من الحساب
   useEffect(() => {
@@ -231,26 +253,8 @@ export default function CompleteProfilePage() {
     return true;
   }
 
-  // الانتقال للخطوة 2
-  function handleGoToStep2() {
-    if (!validateStep1()) {
-      return;
-    }
-    setStep(2);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  // حفظ نهائي
-  async function handleSubmit() {
-    if (submitting) return;
-
-    // إعادة فحص الخطوة الأولى
-    if (!validateStep1()) {
-      setStep(1);
-      return;
-    }
-
-    // فحص الخطوة الثانية
+  // التحقق من الخطوة 2
+  function validateStep2(): boolean {
     const step2Errs: Record<string, string> = {};
     if (form.skills.length === 0) {
       step2Errs.skills = "يرجى اختيار مهارة واحدة على الأقل.";
@@ -261,7 +265,58 @@ export default function CompleteProfilePage() {
 
     if (Object.keys(step2Errs).length > 0) {
       setFieldErrors(step2Errs);
-      setError("يرجى تحديد مهاراتك وأدواتك قبل إكمال الملف.");
+      setError("يرجى تحديد مهاراتك وأدواتك قبل المتابعة.");
+      return false;
+    }
+
+    setError("");
+    return true;
+  }
+
+  // الانتقال للخطوة 2
+  function handleGoToStep2() {
+    if (!validateStep1()) {
+      return;
+    }
+    setStep(2);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // الانتقال للخطوة 3 (الاتفاقية)
+  function handleGoToStep3() {
+    if (!validateStep1()) {
+      setStep(1);
+      return;
+    }
+    if (!validateStep2()) {
+      return;
+    }
+    setStep(3);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // حفظ نهائي (يشمل الملف الشخصي + الاتفاقية)
+  async function handleSubmit() {
+    if (submitting) return;
+
+    if (!validateStep1()) {
+      setStep(1);
+      return;
+    }
+
+    if (!validateStep2()) {
+      setStep(2);
+      return;
+    }
+
+    // التحقق من مدة الاتفاقية والموافقة
+    if (!agreementDuration) {
+      setError("يرجى اختيار مدة اتفاقية التطوع (شهر، شهران، أو ثلاثة أشهر).");
+      return;
+    }
+
+    if (!agreementAgreed) {
+      setError("يرجى قراءة الاتفاقية وتأكيد الموافقة عليها بالضغط على مربع الإقرار.");
       return;
     }
 
@@ -280,6 +335,7 @@ export default function CompleteProfilePage() {
       residence: form.residence.trim(),
       skills: form.skills,
       tools: form.tools,
+      agreementDuration: Number(agreementDuration),
     });
 
     setSubmitting(false);
@@ -292,6 +348,10 @@ export default function CompleteProfilePage() {
     refreshAuth();
     router.replace("/");
   }
+
+  const fullName = [form.firstName, form.fatherName, form.lastName]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <main
@@ -314,13 +374,13 @@ export default function CompleteProfilePage() {
           </div>
 
           <span className="text-xs font-bold text-molim-muted">
-            الخطوة {step} من 2
+            الخطوة {step} من 3
           </span>
         </header>
 
         {/* مؤشر التقدم */}
         <div className="mt-5 flex gap-2">
-          {[1, 2].map((item) => (
+          {[1, 2, 3].map((item) => (
             <div
               key={item}
               className={`h-1.5 flex-1 transition-all ${
@@ -341,7 +401,7 @@ export default function CompleteProfilePage() {
         {step === 1 && (
           <section className="mt-8">
             <p className="text-xs font-black tracking-wide text-[#ed542f]">
-              البيانات الأساسية
+              الخطوة 1: البيانات الأساسية
             </p>
 
             <h2 className="mt-2 text-2xl font-black leading-tight text-molim-foreground">
@@ -357,7 +417,7 @@ export default function CompleteProfilePage() {
               <Input
                 label="الاسم الأول (باللغة العربية)"
                 required
-                placeholder="مثال:اصيل "
+                placeholder="مثال: عبد الرحمن"
                 value={form.firstName}
                 error={fieldErrors.firstName}
                 onChange={(val) => updateField("firstName", val)}
@@ -367,7 +427,7 @@ export default function CompleteProfilePage() {
               <Input
                 label="اسم الأب (باللغة العربية)"
                 required
-                placeholder="مثال: محمد "
+                placeholder="مثال: عبد الله"
                 value={form.fatherName}
                 error={fieldErrors.fatherName}
                 onChange={(val) => updateField("fatherName", val)}
@@ -377,7 +437,7 @@ export default function CompleteProfilePage() {
               <Input
                 label="اسم العائلة (باللغة العربية)"
                 required
-                placeholder="مثال: الصلوي "
+                placeholder="مثال: الغامدي"
                 value={form.lastName}
                 error={fieldErrors.lastName}
                 onChange={(val) => updateField("lastName", val)}
@@ -500,7 +560,7 @@ export default function CompleteProfilePage() {
         {step === 2 && (
           <section className="mt-8">
             <p className="text-xs font-black tracking-wide text-[#ed542f]">
-              مهاراتك وأدواتك
+              الخطوة 2: المهارات والأدوات
             </p>
 
             <h2 className="mt-2 text-2xl font-black leading-tight text-molim-foreground">
@@ -606,26 +666,216 @@ export default function CompleteProfilePage() {
 
               <button
                 type="button"
-                disabled={submitting}
-                onClick={handleSubmit}
-                className="h-14 cursor-pointer bg-[#ed542f] text-sm font-black text-white shadow-sm transition hover:bg-[#d84824] active:scale-[0.99] disabled:cursor-wait disabled:opacity-70"
+                onClick={handleGoToStep3}
+                className="h-14 cursor-pointer bg-[#ed542f] text-sm font-black text-white shadow-sm transition hover:bg-[#d84824] active:scale-[0.99]"
               >
-                {submitting ? "جاري الحفظ..." : "حفظ واعتماد ملفي"}
+                متابعة إلى الاتفاقية
               </button>
             </div>
           </section>
         )}
 
-        {/* رسالة إرشادية حول إلزامية إكمال الملف */}
+        {/* الخطوة الثالثة: اتفاقية التطوع */}
+        {step === 3 && (
+          <section className="mt-8">
+            <p className="text-xs font-black tracking-wide text-[#ed542f]">
+              الخطوة 3 والأخيرة: اتفاقية التطوع
+            </p>
+
+            <h2 className="mt-2 text-2xl font-black leading-tight text-molim-foreground">
+              اتفاقية التطوع — فريق مُلم
+            </h2>
+
+            <p className="mt-2 text-xs leading-6 text-molim-muted">
+              يرجى قراءة بنود الاتفاقية واختيار مدة التطوع المناسبة لك (شهر، شهران، أو ثلاثة أشهر)، ثم تأكيد موافقتك لاعتماد حسابك.
+            </p>
+
+            {/* بيانات الوثيقة والطرفين */}
+            <div className="mt-6 grid grid-cols-2 gap-2">
+              <div className="border border-molim bg-molim-soft p-3.5">
+                <p className="text-[10px] text-molim-muted">الطرف الأول</p>
+                <p className="mt-1 text-xs font-black text-molim-foreground">
+                  فريق مُلم (الإدارة)
+                </p>
+              </div>
+
+              <div className="border border-molim bg-molim-soft p-3.5">
+                <p className="text-[10px] text-molim-muted">الطرف الثاني</p>
+                <p className="mt-1 text-xs font-black text-molim-foreground truncate">
+                  {fullName || "المتطوع"}
+                </p>
+              </div>
+            </div>
+
+            {/* نص بنود الاتفاقية الكامل */}
+            <div className="mt-4 border border-molim bg-molim-soft">
+              <div className="border-b border-molim px-4 py-3">
+                <p className="text-xs font-black text-molim-foreground">
+                  وثيقة اتفاقية التطوع الرسمية
+                </p>
+              </div>
+
+              <article className="max-h-[380px] overflow-y-auto px-4 py-4 text-justify">
+                <div className="space-y-5 text-xs leading-7 text-molim-muted">
+                  <section>
+                    <h4 className="font-black text-molim-foreground">
+                      أولًا: التمهيد والإقرار
+                    </h4>
+                    <p className="mt-1">
+                      بناءً على رغبة الطرف الثاني في الانضمام إلى فريق مُلم والمساهمة في تحقيق أهدافه من خلال العمل التطوعي، يقر الطرف الثاني بأنه اطلع على هذه الوثيقة وفهم جميع بنودها، ويتعهد بالالتزام الكامل بسياسات ولوائح فريق مُلم وأداء المهام الموكلة إليه بأمانة ومسؤولية.
+                    </p>
+                  </section>
+
+                  <section>
+                    <h4 className="font-black text-molim-foreground">
+                      ثانيًا: التزامات وواجبات المتطوع
+                    </h4>
+                    <p className="mt-1">
+                      يقر المتطوع بأن مشاركته تطوعية بالكامل وغير مدفوعة الأجر ولا يترتب عليها أي التزام مالي. يلتزم بإنجاز المهام المسندة إليه ضمن المواعيد المحددة وإبلاغ الإدارة بأي طارئ. كما يلتزم بالمحافظة التامة على سرية كافة بيانات ووثائق الفريق.
+                    </p>
+                  </section>
+
+                  <section>
+                    <h4 className="font-black text-molim-foreground">
+                      ثالثًا: حقوق المتطوع
+                    </h4>
+                    <p className="mt-1">
+                      يلتزم فريق مُلم بتوفير بيئة تطوعية محفزة وحفظ بيانات المتطوع. ويحق للمتطوع توثيق مساهماته والاستفادة من الساعات والشهادات المعتمدة وفق لوائح المنصة.
+                    </p>
+                  </section>
+
+                  <section>
+                    <h4 className="font-black text-molim-foreground">
+                      رابعًا: المهام والساعات
+                    </h4>
+                    <p className="mt-1">
+                      يتم إسناد المهام وتسجيل الساعات من خلال منصة مُلم وتعتمد وفق إجراءات المراجعة المعتمدة.
+                    </p>
+                  </section>
+
+                  <section>
+                    <h4 className="font-black text-molim-foreground">
+                      خامسًا: مدة الاتفاقية وتجديدها
+                    </h4>
+                    <p className="mt-1">
+                      تبدأ الاتفاقية من تاريخ الموافقة عليها، وتكون مدتها حسب الاختيار المعتمد أدناه (شهر واحد، شهران، أو ثلاثة أشهر). ويمكن للمتطوع تجديد الاتفاقية لاحقاً عبر المنصة.
+                    </p>
+                  </section>
+
+                  <section>
+                    <h4 className="font-black text-molim-foreground">
+                      سادسًا: إنهاء التطوع
+                    </h4>
+                    <p className="mt-1">
+                      في حال الرغبة في إنهاء التطوع، يتعين على المتطوع إشعار الإدارة مسبقاً لتسليم المهام المعلقة.
+                    </p>
+                  </section>
+                </div>
+              </article>
+            </div>
+
+            {/* اختيار مدة الاتفاقية */}
+            <div className="mt-6">
+              <h3 className="text-xs font-black text-molim-foreground">
+                اختر مدة الاتفاقية <span className="text-[#ed542f]">*</span>
+              </h3>
+
+              <div className="mt-3 space-y-2">
+                {durations.map((item) => {
+                  const selected = agreementDuration === item.value;
+                  return (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => {
+                        setAgreementDuration(item.value);
+                        if (error) setError("");
+                      }}
+                      className={`flex w-full cursor-pointer items-center gap-3 border p-3.5 text-right transition ${
+                        selected
+                          ? "border-[#ed542f] bg-[#ed542f]/5"
+                          : "border-molim bg-molim-soft hover:bg-white"
+                      }`}
+                    >
+                      <span
+                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                          selected ? "border-[#ed542f]" : "border-molim"
+                        }`}
+                      >
+                        {selected && (
+                          <span className="h-2 w-2 rounded-full bg-[#ed542f]" />
+                        )}
+                      </span>
+
+                      <div className="flex-1">
+                        <span className="block text-xs font-black text-molim-foreground">
+                          {item.title}
+                        </span>
+                        <span className="block text-[11px] text-molim-muted">
+                          {item.description}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* إقرار الموافقة */}
+            <div className="mt-5 border border-molim bg-molim-soft p-3.5">
+              <label className="flex cursor-pointer items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={agreementAgreed}
+                  onChange={(e) => {
+                    setAgreementAgreed(e.target.checked);
+                    if (error) setError("");
+                  }}
+                  className="mt-0.5 h-4 w-4 accent-[#ed542f]"
+                />
+
+                <span className="text-xs leading-5 text-molim-foreground font-semibold">
+                  أقر بأنني قرأت اتفاقية التطوع كاملة، وفهمت جميع بنودها، واخترت مدة الاتفاقية، وأوافق على الالتزام بها وبسياسات ولوائح فريق مُلم. <span className="text-[#ed542f]">*</span>
+                </span>
+              </label>
+            </div>
+
+            {/* أزرار الحفظ والاعتماد */}
+            <div className="mt-7 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setStep(2);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className="h-14 cursor-pointer border border-molim bg-molim-soft text-sm font-black text-molim-foreground transition hover:bg-gray-100"
+              >
+                رجوع
+              </button>
+
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={handleSubmit}
+                className="h-14 cursor-pointer bg-[#ed542f] text-sm font-black text-white shadow-sm transition hover:bg-[#d84824] active:scale-[0.99] disabled:cursor-wait disabled:opacity-70"
+              >
+                {submitting ? "جاري الاعتماد..." : "أوافق وأكمل الانضمام"}
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* رسالة إرشادية حول إلزامية إكمال الملف والاتفاقية */}
         <div className="mt-8 rounded-lg border border-[#ed542f]/20 bg-[#ed542f]/5 p-3.5 text-center">
           <p className="text-[11px] leading-5 text-molim-muted">
-            🔒 إكمال الملف الشخصي إلزامي لمنحك الصلاحيات والوصول لمهامك في المنصة، ولا يمكن تخطي هذه الخطوة.
+            🔒 إكمال الملف الشخصي وتوقيع الاتفاقية إلزامي لاعتماد عضويتك والبدء في استلام المهام داخل المنصة.
           </p>
         </div>
 
         <footer className="mt-6 border-t border-molim pt-5 text-center">
           <p className="text-[11px] text-molim-muted">
-            منصة مُلم — إكمال بيانات العضو
+            منصة مُلم — إكمال بيانات وعضوية المتطوع
           </p>
         </footer>
       </div>

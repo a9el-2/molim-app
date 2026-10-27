@@ -40,6 +40,7 @@ export async function POST(request: Request) {
     residence?: string;
     skills?: string[];
     tools?: string[];
+    agreementDuration?: number;
   } = {};
 
   try {
@@ -174,6 +175,27 @@ export async function POST(request: Request) {
       { error: "تعذر حفظ بياناتك. حاول مرة أخرى." },
       { status: 500 }
     );
+  }
+
+  // إذا تم اختيار مدة الاتفاقية، نسجّل الاتفاقية في جدول volunteer_agreements
+  const durationMonths = Number(body.agreementDuration);
+  if ([1, 2, 3].includes(durationMonths)) {
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + durationMonths);
+
+    const { error: agError } = await supabase
+      .from("volunteer_agreements")
+      .insert({
+        user_id: auth.user.id,
+        duration_months: durationMonths,
+        expires_at: expiresAt.toISOString(),
+        agreement_version: "v1.0",
+        is_renewal: false,
+      });
+
+    if (agError) {
+      console.warn("Could not insert volunteer_agreement on complete profile:", agError.message);
+    }
   }
 
   return NextResponse.json({ ok: true, id: auth.user.id });

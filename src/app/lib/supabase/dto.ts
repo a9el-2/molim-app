@@ -257,7 +257,132 @@ export type CompleteProfileInput = {
   residence?: string;
   skills?: string[];
   tools?: string[];
+  agreementDuration?: number;
 };
+
+export type VolunteerAgreementDTO = {
+  id: string;
+  user_id: string;
+  duration_months: number;
+  signed_at: string;
+  expires_at: string;
+  agreement_version: string;
+  status: "active" | "expired" | "renewed";
+  is_renewal: boolean;
+  notes?: string | null;
+  users?: {
+    first_name?: string;
+    father_name?: string;
+    last_name?: string;
+    department_id?: string | null;
+  };
+};
+
+export async function signAgreement(payload: {
+  durationMonths: number;
+  renew?: boolean;
+}): Promise<{ ok: boolean; id?: string; error?: string; code?: string }> {
+  const response = await fetch("/api/agreements", {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(payload),
+  }).catch(() => null);
+
+  if (!response) {
+    return { ok: false, error: "تعذر الاتصال بالخادم. حاول مرة أخرى." };
+  }
+
+  const data = await parseJson<{
+    ok?: boolean;
+    id?: string;
+    error?: string;
+    code?: string;
+  }>(response);
+
+  if (!response.ok || !data?.ok) {
+    return {
+      ok: false,
+      error: data?.error ?? "تعذر حفظ الاتفاقية.",
+      code: data?.code,
+    };
+  }
+
+  return { ok: true, id: data.id };
+}
+
+export async function fetchMyAgreement(): Promise<{
+  ok: boolean;
+  agreement: VolunteerAgreementDTO | null;
+  hasActive: boolean;
+  error?: string;
+}> {
+  const response = await fetch("/api/agreements/me", {
+    headers: authHeaders(),
+  }).catch(() => null);
+
+  if (!response) {
+    return {
+      ok: false,
+      agreement: null,
+      hasActive: false,
+      error: "تعذر الاتصال بالخادم.",
+    };
+  }
+
+  const data = await parseJson<{
+    ok?: boolean;
+    agreement?: VolunteerAgreementDTO | null;
+    hasActive?: boolean;
+    error?: string;
+  }>(response);
+
+  if (!response.ok || !data?.ok) {
+    return {
+      ok: false,
+      agreement: null,
+      hasActive: false,
+      error: data?.error ?? "تعذر جلب بيانات الاتفاقية.",
+    };
+  }
+
+  return {
+    ok: true,
+    agreement: data.agreement ?? null,
+    hasActive: Boolean(data.hasActive),
+  };
+}
+
+export async function fetchAgreements(
+  userId?: string
+): Promise<{ ok: boolean; agreements?: VolunteerAgreementDTO[]; error?: string }> {
+  const url = userId
+    ? `/api/agreements?userId=${encodeURIComponent(userId)}`
+    : "/api/agreements";
+
+  const response = await fetch(url, {
+    headers: authHeaders(),
+  }).catch(() => null);
+
+  if (!response) {
+    return { ok: false, error: "تعذر الاتصال بالخادم." };
+  }
+
+  const data = await parseJson<{
+    ok?: boolean;
+    agreements?: VolunteerAgreementDTO[];
+    error?: string;
+  }>(response);
+
+  if (!response.ok || !data?.ok) {
+    return {
+      ok: false,
+      agreements: [],
+      error: data?.error ?? "تعذر جلب الاتفاقيات.",
+    };
+  }
+
+  return { ok: true, agreements: data.agreements ?? [] };
+}
 
 export async function completeProfile(
   payload: CompleteProfileInput
