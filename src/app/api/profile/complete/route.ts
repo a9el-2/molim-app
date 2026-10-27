@@ -19,6 +19,9 @@ export async function POST(request: Request) {
 
   const supabase = getSupabaseServerClient();
   if (!supabase) {
+    if (auth.demo) {
+      return NextResponse.json({ ok: true, id: auth.user.id });
+    }
     return NextResponse.json(
       { error: "الخدمة غير متاحة مؤقتاً. حاول لاحقاً." },
       { status: 503 }
@@ -53,26 +56,104 @@ export async function POST(request: Request) {
     );
   }
 
+  const fatherName = (body.fatherName ?? "").trim();
+  if (!fatherName) {
+    return NextResponse.json(
+      { error: "اسم الأب مطلوب." },
+      { status: 400 }
+    );
+  }
+
+  const lastName = (body.lastName ?? "").trim();
+  if (!lastName) {
+    return NextResponse.json(
+      { error: "اسم العائلة مطلوب." },
+      { status: 400 }
+    );
+  }
+
   const email = (body.email ?? "").trim();
-  if (email && !/^[^@\s]+@[^@\s]+$/.test(email)) {
+  if (!email) {
+    return NextResponse.json(
+      { error: "البريد الإلكتروني مطلوب." },
+      { status: 400 }
+    );
+  }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return NextResponse.json(
       { error: "صيغة البريد الإلكتروني غير صحيحة." },
       { status: 400 }
     );
   }
 
+  const countryCode = (body.countryCode ?? "").trim();
+  if (!countryCode) {
+    return NextResponse.json(
+      { error: "رمز الدولة مطلوب." },
+      { status: 400 }
+    );
+  }
+
+  const phone = (body.phone ?? "").trim();
+  if (!phone) {
+    return NextResponse.json(
+      { error: "رقم الهاتف مطلوب." },
+      { status: 400 }
+    );
+  }
+
+  const birthDate = (body.birthDate ?? "").trim();
+  if (!birthDate) {
+    return NextResponse.json(
+      { error: "تاريخ الميلاد مطلوب." },
+      { status: 400 }
+    );
+  }
+
+  const nationality = (body.nationality ?? "").trim();
+  if (!nationality) {
+    return NextResponse.json(
+      { error: "الجنسية مطلوبة." },
+      { status: 400 }
+    );
+  }
+
+  const residence = (body.residence ?? "").trim();
+  if (!residence) {
+    return NextResponse.json(
+      { error: "بلد الإقامة مطلوب." },
+      { status: 400 }
+    );
+  }
+
+  const skills = Array.isArray(body.skills) ? body.skills.filter(Boolean) : [];
+  if (skills.length === 0) {
+    return NextResponse.json(
+      { error: "يرجى تحديد مهارة واحدة على الأقل." },
+      { status: 400 }
+    );
+  }
+
+  const tools = Array.isArray(body.tools) ? body.tools.filter(Boolean) : [];
+  if (tools.length === 0) {
+    return NextResponse.json(
+      { error: "يرجى تحديد أداة أو برنامج واحد على الأقل." },
+      { status: 400 }
+    );
+  }
+
   const updatePayload: Record<string, unknown> = {
     first_name: firstName,
-    father_name: (body.fatherName ?? "").trim() || null,
-    last_name: (body.lastName ?? "").trim() || null,
-    email: email || null,
-    phone: (body.phone ?? "").trim() || null,
-    country_code: (body.countryCode ?? "").trim() || null,
-    birth_date: body.birthDate || null,
-    nationality: (body.nationality ?? "").trim() || null,
-    residence: (body.residence ?? "").trim() || null,
-    skills: Array.isArray(body.skills) && body.skills.length ? body.skills : [],
-    tools: Array.isArray(body.tools) && body.tools.length ? body.tools : [],
+    father_name: fatherName,
+    last_name: lastName,
+    email: email,
+    phone: phone,
+    country_code: countryCode,
+    birth_date: birthDate,
+    nationality: nationality,
+    residence: residence,
+    skills: skills,
+    tools: tools,
     profile_completed: true,
   };
 
