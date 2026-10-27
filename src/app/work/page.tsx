@@ -1942,218 +1942,229 @@ export default function WorkPage() {
         {/* نافذة إنشاء مهمة جديدة */}
         {isCreateOpen && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto"
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs"
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-task-title"
           >
-            <div className="w-full max-w-xl my-8 rounded-xl bg-molim-surface border border-[var(--card-border)] p-5 sm:p-6 shadow-xl space-y-4">
-              <div className="flex items-center justify-between border-b border-[var(--card-border)] pb-3">
-                <h3 id="create-task-title" className="text-base font-bold text-molim-foreground">
-                  إنشاء مهمة جديدة
-                </h3>
+            <div className="w-full sm:max-w-xl max-h-[92vh] sm:max-h-[85vh] rounded-t-2xl sm:rounded-xl bg-molim-surface border border-[var(--card-border)] shadow-2xl flex flex-col overflow-hidden animate-in fade-in duration-150">
+              <div className="flex items-center justify-between border-b border-[var(--card-border)] px-4 py-3 sm:px-6 sm:py-4 bg-molim-surface shrink-0">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[var(--molim-orange)]" />
+                  <h3 id="create-task-title" className="text-base font-bold text-molim-foreground">
+                    إنشاء مهمة جديدة
+                  </h3>
+                </div>
                 <button
                   type="button"
                   onClick={() => !createSubmitting && setIsCreateOpen(false)}
-                  className="text-xs text-molim-muted hover:text-molim-foreground"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-molim-muted hover:text-molim-foreground hover:bg-molim-soft transition-colors"
+                  aria-label="إغلاق"
                 >
-                  إغلاق
+                  ✕
                 </button>
               </div>
 
-              <form onSubmit={handleCreateTask} className="space-y-4">
-                {/* عنوان المهمة */}
-                <div>
-                  <label
-                    htmlFor="create-title"
-                    className="block text-xs font-bold text-molim-foreground mb-1"
-                  >
-                    عنوان المهمة (إجباري – حتى 150 حرفاً):
-                  </label>
-                  <input
-                    id="create-title"
-                    type="text"
-                    maxLength={150}
-                    value={createTitle}
-                    onChange={(e) => setCreateTitle(e.target.value)}
-                    disabled={createSubmitting}
-                    placeholder="مثال: إعداد تقرير الفعالية الشهرية"
-                    className="w-full p-2.5 rounded-lg border border-[var(--card-border)] bg-molim text-molim-foreground placeholder:text-molim-muted text-xs focus:outline-none focus:ring-2 focus:ring-[var(--molim-orange)]"
-                  />
-                </div>
-
-                {/* الوصف */}
-                <div>
-                  <label
-                    htmlFor="create-desc"
-                    className="block text-xs font-bold text-molim-foreground mb-1"
-                  >
-                    وصف المهمة (اختياري – حتى 2000 حرف):
-                  </label>
-                  <textarea
-                    id="create-desc"
-                    rows={3}
-                    maxLength={2000}
-                    value={createDescription}
-                    onChange={(e) => setCreateDescription(e.target.value)}
-                    disabled={createSubmitting}
-                    placeholder="تفاصيل وإرشادات تنفيذ المهمة..."
-                    className="w-full p-2.5 rounded-lg border border-[var(--card-border)] bg-molim text-molim-foreground placeholder:text-molim-muted text-xs focus:outline-none focus:ring-2 focus:ring-[var(--molim-orange)]"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* الأولوية */}
+              <form onSubmit={handleCreateTask} className="flex flex-col flex-1 overflow-hidden">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 overscroll-contain">
+                  {/* عنوان المهمة */}
                   <div>
                     <label
-                      htmlFor="create-priority"
-                      className="block text-xs font-bold text-molim-foreground mb-1"
+                      htmlFor="create-title"
+                      className="block text-xs font-bold text-molim-foreground mb-1.5"
                     >
-                      الأولوية:
-                    </label>
-                    <select
-                      id="create-priority"
-                      value={createPriority}
-                      onChange={(e) => setCreatePriority(e.target.value as "normal" | "urgent")}
-                      disabled={createSubmitting}
-                      className="w-full p-2.5 rounded-lg border border-[var(--card-border)] bg-molim text-molim-foreground text-xs focus:outline-none focus:ring-2 focus:ring-[var(--molim-orange)]"
-                    >
-                      <option value="normal">عادية</option>
-                      <option value="urgent">عاجلة</option>
-                    </select>
-                  </div>
-
-                  {/* موعد الإنجاز */}
-                  <div>
-                    <label
-                      htmlFor="create-due"
-                      className="block text-xs font-bold text-molim-foreground mb-1"
-                    >
-                      الموعد النهائي (اختياري):
+                      عنوان المهمة (إجباري – حتى 150 حرفاً):
                     </label>
                     <input
-                      id="create-due"
-                      type="date"
-                      value={createDueDate}
-                      onChange={(e) => setCreateDueDate(e.target.value)}
+                      id="create-title"
+                      type="text"
+                      maxLength={150}
+                      value={createTitle}
+                      onChange={(e) => setCreateTitle(e.target.value)}
                       disabled={createSubmitting}
-                      className="w-full p-2.5 rounded-lg border border-[var(--card-border)] bg-molim text-molim-foreground text-xs focus:outline-none focus:ring-2 focus:ring-[var(--molim-orange)]"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* عدد المنفذين */}
-                  <div>
-                    <label
-                      htmlFor="create-assignees"
-                      className="block text-xs font-bold text-molim-foreground mb-1"
-                    >
-                      عدد المنفذين المطلوب (1–50 أو اتركه فارغاً لبلا حد):
-                    </label>
-                    <input
-                      id="create-assignees"
-                      type="number"
-                      min={1}
-                      max={50}
-                      value={createAssignees}
-                      onChange={(e) => setCreateAssignees(e.target.value)}
-                      disabled={createSubmitting}
-                      placeholder="بلا حد"
-                      className="w-full p-2.5 rounded-lg border border-[var(--card-border)] bg-molim text-molim-foreground text-xs focus:outline-none focus:ring-2 focus:ring-[var(--molim-orange)]"
+                      placeholder="مثال: إعداد تقرير الفعالية الشهرية"
+                      className="w-full p-2.5 min-h-[42px] rounded-lg border border-[var(--card-border)] bg-molim text-molim-foreground placeholder:text-molim-muted text-sm focus:outline-none focus:ring-2 focus:ring-[var(--molim-orange)]"
                     />
                   </div>
 
-                  {/* نطاق المهمة */}
+                  {/* الوصف */}
                   <div>
                     <label
-                      htmlFor="create-scope"
-                      className="block text-xs font-bold text-molim-foreground mb-1"
+                      htmlFor="create-desc"
+                      className="block text-xs font-bold text-molim-foreground mb-1.5"
                     >
-                      نطاق المهمة:
+                      وصف المهمة (اختياري – حتى 2000 حرف):
                     </label>
-                    <select
-                      id="create-scope"
-                      value={createScope}
-                      onChange={(e) => setCreateScope(e.target.value as TaskScopeOption)}
+                    <textarea
+                      id="create-desc"
+                      rows={3}
+                      maxLength={2000}
+                      value={createDescription}
+                      onChange={(e) => setCreateDescription(e.target.value)}
                       disabled={createSubmitting}
-                      className="w-full p-2.5 rounded-lg border border-[var(--card-border)] bg-molim text-molim-foreground text-xs focus:outline-none focus:ring-2 focus:ring-[var(--molim-orange)]"
-                    >
-                      {availableScopes.map((sc) => (
-                        <option key={sc.value} value={sc.value}>
-                          {sc.label}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="تفاصيل وإرشادات تنفيذ المهمة..."
+                      className="w-full p-2.5 rounded-lg border border-[var(--card-border)] bg-molim text-molim-foreground placeholder:text-molim-muted text-sm focus:outline-none focus:ring-2 focus:ring-[var(--molim-orange)] leading-relaxed"
+                    />
                   </div>
-                </div>
 
-                {/* اختيار الأقسام إن كان النطاق departments */}
-                {createScope === "departments" && (
-                  <div className="space-y-2 p-3 rounded-lg bg-molim-soft border border-[var(--card-border)]">
-                    <span className="block text-xs font-bold text-molim-foreground">
-                      حدد الأقسام المستهدفة:
-                    </span>
-                    <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto">
-                      {allDepartments.map((d) => {
-                        const checked = selectedDeptIds.includes(d.id);
-                        return (
-                          <label
-                            key={d.id}
-                            className="flex items-center gap-2 text-xs text-molim-foreground cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleDepartmentSelect(d.id)}
-                              disabled={createSubmitting}
-                              className="rounded border-[var(--card-border)] text-[var(--molim-orange)] focus:ring-0"
-                            />
-                            <span>{d.name}</span>
-                          </label>
-                        );
-                      })}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* الأولوية */}
+                    <div>
+                      <label
+                        htmlFor="create-priority"
+                        className="block text-xs font-bold text-molim-foreground mb-1.5"
+                      >
+                        الأولوية:
+                      </label>
+                      <select
+                        id="create-priority"
+                        value={createPriority}
+                        onChange={(e) => setCreatePriority(e.target.value as "normal" | "urgent")}
+                        disabled={createSubmitting}
+                        className="w-full p-2.5 min-h-[42px] rounded-lg border border-[var(--card-border)] bg-molim text-molim-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[var(--molim-orange)]"
+                      >
+                        <option value="normal">عادية</option>
+                        <option value="urgent">عاجلة</option>
+                      </select>
+                    </div>
+
+                    {/* موعد الإنجاز */}
+                    <div>
+                      <label
+                        htmlFor="create-due"
+                        className="block text-xs font-bold text-molim-foreground mb-1.5"
+                      >
+                        الموعد النهائي (اختياري):
+                      </label>
+                      <input
+                        id="create-due"
+                        type="date"
+                        value={createDueDate}
+                        onChange={(e) => setCreateDueDate(e.target.value)}
+                        disabled={createSubmitting}
+                        className="w-full p-2.5 min-h-[42px] rounded-lg border border-[var(--card-border)] bg-molim text-molim-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[var(--molim-orange)]"
+                      />
                     </div>
                   </div>
-                )}
 
-                {/* إسناد لشخص محدد (لغير المتطوع فقط) */}
-                {isNonVolunteer && (
-                  <div>
-                    <label
-                      htmlFor="create-target-user"
-                      className="block text-xs font-bold text-molim-foreground mb-1"
-                    >
-                      إسناد لشخص محدد (اختياري – رقم العضو MOL-XXXXX):
-                    </label>
-                    <input
-                      id="create-target-user"
-                      type="text"
-                      value={createTargetUserId}
-                      onChange={(e) => setCreateTargetUserId(e.target.value)}
-                      disabled={createSubmitting}
-                      placeholder="مثال: MOL-00015"
-                      className="w-full p-2.5 rounded-lg border border-[var(--card-border)] bg-molim text-molim-foreground placeholder:text-molim-muted text-xs focus:outline-none focus:ring-2 focus:ring-[var(--molim-orange)]"
-                    />
-                    <span className="text-[11px] text-molim-muted mt-0.5 block">
-                      عند التحديد لشخص آخر، يجب ألا يكون النطاق لنفسي.
-                    </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* عدد المنفذين */}
+                    <div>
+                      <label
+                        htmlFor="create-assignees"
+                        className="block text-xs font-bold text-molim-foreground mb-1.5"
+                      >
+                        عدد المنفذين المطلوب (1–50 أو اتركه فارغاً لبلا حد):
+                      </label>
+                      <input
+                        id="create-assignees"
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={createAssignees}
+                        onChange={(e) => setCreateAssignees(e.target.value)}
+                        disabled={createSubmitting}
+                        placeholder="بلا حد"
+                        className="w-full p-2.5 min-h-[42px] rounded-lg border border-[var(--card-border)] bg-molim text-molim-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[var(--molim-orange)]"
+                      />
+                    </div>
+
+                    {/* نطاق المهمة */}
+                    <div>
+                      <label
+                        htmlFor="create-scope"
+                        className="block text-xs font-bold text-molim-foreground mb-1.5"
+                      >
+                        نطاق المهمة:
+                      </label>
+                      <select
+                        id="create-scope"
+                        value={createScope}
+                        onChange={(e) => setCreateScope(e.target.value as TaskScopeOption)}
+                        disabled={createSubmitting}
+                        className="w-full p-2.5 min-h-[42px] rounded-lg border border-[var(--card-border)] bg-molim text-molim-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[var(--molim-orange)]"
+                      >
+                        {availableScopes.map((sc) => (
+                          <option key={sc.value} value={sc.value}>
+                            {sc.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                )}
 
-                {createError && (
-                  <p className="text-xs font-medium text-red-600 dark:text-red-400">
-                    {createError}
-                  </p>
-                )}
+                  {/* اختيار الأقسام إن كان النطاق departments */}
+                  {createScope === "departments" && (
+                    <div className="space-y-2.5 p-3 sm:p-4 rounded-lg bg-molim-soft border border-[var(--card-border)]">
+                      <span className="block text-xs font-bold text-molim-foreground">
+                        حدد الأقسام المستهدفة:
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto p-0.5">
+                        {allDepartments.map((d) => {
+                          const checked = selectedDeptIds.includes(d.id);
+                          return (
+                            <label
+                              key={d.id}
+                              className={`flex items-center gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
+                                checked
+                                  ? "border-[var(--molim-orange)] bg-[var(--molim-orange)]/10 text-molim-foreground font-bold"
+                                  : "border-[var(--card-border)] bg-molim text-molim-muted hover:bg-molim-surface"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleDepartmentSelect(d.id)}
+                                disabled={createSubmitting}
+                                className="w-4 h-4 rounded border-[var(--card-border)] text-[var(--molim-orange)] focus:ring-0"
+                              />
+                              <span className="truncate">{d.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
-                <div className="flex justify-end gap-2 pt-2 border-t border-[var(--card-border)]">
+                  {/* إسناد لشخص محدد (لغير المتطوع فقط) */}
+                  {isNonVolunteer && (
+                    <div>
+                      <label
+                        htmlFor="create-target-user"
+                        className="block text-xs font-bold text-molim-foreground mb-1.5"
+                      >
+                        إسناد لشخص محدد (اختياري – رقم العضو MOL-XXXXX):
+                      </label>
+                      <input
+                        id="create-target-user"
+                        type="text"
+                        value={createTargetUserId}
+                        onChange={(e) => setCreateTargetUserId(e.target.value)}
+                        disabled={createSubmitting}
+                        placeholder="مثال: MOL-00015"
+                        className="w-full p-2.5 min-h-[42px] rounded-lg border border-[var(--card-border)] bg-molim text-molim-foreground placeholder:text-molim-muted text-sm focus:outline-none focus:ring-2 focus:ring-[var(--molim-orange)]"
+                      />
+                      <span className="text-[11px] text-molim-muted mt-1 block">
+                        عند التحديد لشخص آخر، يجب ألا يكون النطاق لنفسي.
+                      </span>
+                    </div>
+                  )}
+
+                  {createError && (
+                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs font-medium text-red-600 dark:text-red-400">
+                      {createError}
+                    </div>
+                  )}
+                </div>
+
+                {/* أزرار الإجراءات في أسفل النافذة */}
+                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 p-4 sm:px-6 sm:py-4 border-t border-[var(--card-border)] bg-molim-surface shrink-0">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => !createSubmitting && setIsCreateOpen(false)}
                     disabled={createSubmitting}
-                    className="text-xs px-4"
+                    className="w-full sm:w-auto text-xs py-2.5 px-4"
                   >
                     إلغاء
                   </Button>
@@ -2162,7 +2173,7 @@ export default function WorkPage() {
                     type="submit"
                     variant="primary"
                     disabled={createSubmitting}
-                    className="text-xs px-4"
+                    className="w-full sm:w-auto text-xs py-2.5 px-6 font-bold"
                   >
                     {createSubmitting ? "جاري الحفظ..." : "حفظ المهمة"}
                   </Button>
