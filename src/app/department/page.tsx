@@ -256,7 +256,7 @@ export default function DepartmentPage() {
             </div>
 
             <Link
-              href="/tasks"
+              href="/work"
               className="text-xs font-bold text-[#ed542f]"
             >
               مهامي

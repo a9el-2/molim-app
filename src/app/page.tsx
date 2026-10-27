@@ -64,27 +64,24 @@ export default function Home() {
       typeof window !== "undefined"
         ? window.Telegram?.WebApp?.initData
         : "";
-    fetch("/api/tasks", {
+    fetch("/api/task-assignments", {
       headers: initData ? { "X-Telegram-Init-Data": initData } : {},
     })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.tasks && Array.isArray(data.tasks)) {
-          // حساب المهام الخاصة بهذا العضو فقط (مهامي)
-          const myTasks = data.tasks.filter(
-            (t: {
-              target_user_id?: string | null;
-              assigned_to?: string | null;
-              target_type?: string | null;
-              created_by?: string;
-            }) =>
-              t.target_user_id === user.id ||
-              t.assigned_to === user.id ||
-              (t.target_type === "self" && t.created_by === user.id) ||
-              (!t.target_user_id && !t.assigned_to && t.created_by === user.id)
-          );
-          setTasksTotal(myTasks.length);
-          const pending = myTasks.filter(
+        if (data?.assignments && Array.isArray(data.assignments)) {
+          setTasksTotal(data.assignments.length);
+          const pending = data.assignments.filter(
+            (t: { status: string }) =>
+              t.status === "in_progress" ||
+              t.status === "assigned" ||
+              t.status === "offered" ||
+              t.status === "submitted"
+          ).length;
+          setTasksPending(pending);
+        } else if (data?.tasks && Array.isArray(data.tasks)) {
+          setTasksTotal(data.tasks.length);
+          const pending = data.tasks.filter(
             (t: { status: string }) =>
               t.status === "in_progress" || t.status === "in_review"
           ).length;
@@ -208,7 +205,7 @@ export default function Home() {
           </div>
 
           <div className="mt-5">
-            <Link href="/tasks">
+            <Link href="/work">
               <Button variant="secondary" className="w-full">
                 عرض مهامي
               </Button>
@@ -238,9 +235,9 @@ export default function Home() {
           </div>
 
           <div className="mt-5">
-            <Link href="/tasks">
+            <Link href="/work">
               <Button variant="primary" className="w-full">
-                عرض المهام
+                عرض المهام والعمل
               </Button>
             </Link>
           </div>
@@ -271,9 +268,9 @@ export default function Home() {
           </p>
 
           <div className="mt-5">
-            <Link href="/tasks">
+            <Link href="/work">
               <Button variant="outline">
-                الانتقال إلى المهام
+                الانتقال إلى المهام والعمل
               </Button>
             </Link>
           </div>
@@ -344,19 +341,13 @@ export default function Home() {
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-molim-muted">
-              يمكنك متابعة مهام القسم والأعضاء ومراجعة المهام المرفوعة من القائمة الجانبية أو صفحة المهام.
+              يمكنك متابعة مهام القسم والأعضاء من خلال صفحة المهام والعمل أو القائمة الجانبية.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              <Link href="/tasks">
+              <Link href="/work">
                 <Button variant="secondary">
-                  مهام القسم
-                </Button>
-              </Link>
-
-              <Link href="/task-review">
-                <Button variant="outline">
-                  مراجعة المهام
+                  المهام والعمل
                 </Button>
               </Link>
 
@@ -380,19 +371,13 @@ export default function Home() {
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-molim-muted">
-              يمكنك متابعة المتطوعين ومراجعة المهام وطلبات الشهادات.
+              يمكنك متابعة المتطوعين وطلبات الشهادات وإضافة الأعضاء.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
               <Link href="/volunteers">
                 <Button variant="secondary">
                   المتطوعون
-                </Button>
-              </Link>
-
-              <Link href="/task-review">
-                <Button variant="outline">
-                  مراجعة المهام
                 </Button>
               </Link>
 
@@ -422,19 +407,13 @@ export default function Home() {
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-molim-muted">
-              يمكنك متابعة المتطوعين ومراجعة المهام وطلبات الشهادات.
+              يمكنك متابعة المتطوعين وطلبات الشهادات وإضافة الأعضاء.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
               <Link href="/volunteers">
                 <Button variant="secondary">
                   المتطوعون
-                </Button>
-              </Link>
-
-              <Link href="/task-review">
-                <Button variant="outline">
-                  مراجعة المهام
                 </Button>
               </Link>
 

@@ -84,11 +84,7 @@ export default function MolimHeader() {
       title: "المهام والعمل",
       href: "/work",
     },
-    {
-      title: "المهام",
-      href: "/tasks",
-    },
-    {
+        {
       title: "الشهادات والخطابات",
       href: "/certificates",
     },
@@ -106,21 +102,13 @@ export default function MolimHeader() {
       title: "إضافة مهمة",
       href: "/add-task",
     },
-    {
-      title: "مراجعة المهام",
-      href: "/task-review",
-    },
-  ];
+      ];
 
   /* =========================================
      الموارد البشرية
      ========================================= */
   const hrMenu: MenuItem[] = [
-    {
-      title: "مراجعة المهام",
-      href: "/task-review",
-    },
-    {
+        {
       title: "طلبات الشهادات",
       href: "/certificate-requests",
     },
@@ -138,11 +126,7 @@ export default function MolimHeader() {
      الإدارة العليا
      ========================================= */
   const adminMenu: MenuItem[] = [
-    {
-      title: "مراجعة المهام",
-      href: "/task-review",
-    },
-    {
+        {
       title: "طلبات الشهادات",
       href: "/certificate-requests",
     },
@@ -160,11 +144,7 @@ export default function MolimHeader() {
      الرئيس العام — إدارة النظام
      ========================================= */
   const superAdminMenu: MenuItem[] = [
-    {
-      title: "مراجعة المهام",
-      href: "/task-review",
-    },
-    {
+        {
       title: "طلبات الشهادات",
       href: "/certificate-requests",
     },

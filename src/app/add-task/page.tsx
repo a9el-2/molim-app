@@ -174,9 +174,9 @@ export default function AddTaskPage() {
     const data = await parseJson<{ ok?: boolean; error?: string; message?: string }>(response);
 
     if (response.status === 201 || (response.ok && data?.ok)) {
-      setSuccessMessage("تم إنشاء المهمة بنجاح! جاري الانتقال لقائمة المهام...");
+      setSuccessMessage("تم إنشاء المهمة بنجاح! جاري الانتقال لقائمة المهام والعمل...");
       setTimeout(() => {
-        router.push("/tasks");
+        router.push("/work");
       }, 1200);
       return;
     }
@@ -193,11 +193,11 @@ export default function AddTaskPage() {
           {/* ترويسة الصفحة */}
           <div>
             <Link
-              href="/tasks"
+              href="/work"
               className="text-xs font-bold text-molim-orange hover:underline inline-flex items-center gap-1 mb-2"
             >
               <span>→</span>
-              <span>العودة للمهام</span>
+              <span>العودة للمهام والعمل</span>
             </Link>
             <h1 className="text-2xl font-black text-molim-foreground">
               إضافة مهمة جديدة
@@ -381,7 +381,7 @@ export default function AddTaskPage() {
 
             {/* أزرار الإجراء */}
             <div className="flex items-center justify-end gap-3">
-              <Link href="/tasks">
+              <Link href="/work">
                 <Button variant="outline" type="button" disabled={submitting} className="text-xs">
                   إلغاء
                 </Button>

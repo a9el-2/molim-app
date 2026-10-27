@@ -8,7 +8,7 @@ export default function HoursReviewRedirectPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/task-review");
+    router.replace("/work");
   }, [router]);
 
   return (
@@ -17,7 +17,7 @@ export default function HoursReviewRedirectPage() {
         <div className="space-y-3">
           <div className="h-8 w-8 mx-auto animate-spin rounded-full border-4 border-molim border-t-molim-orange" />
           <p className="text-sm font-bold text-molim-muted">
-            جاري تحويلك إلى صفحة «مراجعة المهام»...
+            جاري تحويلك إلى صفحة «المهام والعمل»...
           </p>
         </div>
       </div>
