@@ -308,6 +308,9 @@ function resolveTask(taskRaw: AssignmentTask | AssignmentTask[]): AssignmentTask
 // المكون الرئيسي للصفحة
 // ─────────────────────────────────────────────────────────────
 
+// إخفاء تبويب مهام الفريق مؤقتاً
+const SHOW_TEAM_TAB = false;
+
 export default function WorkPage() {
   const { user: currentUser } = useAuth();
   const isNonVolunteer = currentUser && currentUser.role !== "VOLUNTEER";
@@ -496,7 +499,9 @@ export default function WorkPage() {
     loadData();
     if (isNonVolunteer) {
       loadReviewData();
-      loadTeamData();
+      if (SHOW_TEAM_TAB) {
+        loadTeamData();
+      }
       loadDepartments();
     }
   }, [loadData, loadReviewData, loadTeamData, loadDepartments, isNonVolunteer]);
@@ -1073,17 +1078,19 @@ export default function WorkPage() {
                   بانتظار مراجعتي ({reviewAssignments.length})
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("team")}
-                  className={`py-3 px-1 min-h-[44px] text-sm font-bold border-b-2 transition-colors ${
-                    activeTab === "team"
-                      ? "border-[var(--molim-orange)] text-molim-foreground"
-                      : "border-transparent text-molim-muted hover:text-molim-foreground"
-                  }`}
-                >
-                  مهام الفريق ({teamTasks.length})
-                </button>
+                {SHOW_TEAM_TAB && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("team")}
+                    className={`py-3 px-1 min-h-[44px] text-sm font-bold border-b-2 transition-colors ${
+                      activeTab === "team"
+                        ? "border-[var(--molim-orange)] text-molim-foreground"
+                        : "border-transparent text-molim-muted hover:text-molim-foreground"
+                    }`}
+                  >
+                    مهام الفريق ({teamTasks.length})
+                  </button>
+                )}
               </>
             )}
           </nav>
@@ -1553,8 +1560,8 @@ export default function WorkPage() {
               </div>
             )}
 
-            {/* التبويب 5: مهام الفريق (لغير المتطوع) */}
-            {isNonVolunteer && activeTab === "team" && (
+            {/* التبويب 5: مهام الفريق (مخفي مؤقتاً) */}
+            {SHOW_TEAM_TAB && isNonVolunteer && activeTab === "team" && (
               <div className="space-y-4">
                 {teamLoading && (
                   <div className="py-12 text-center text-molim-muted">
