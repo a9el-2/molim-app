@@ -3,18 +3,26 @@ import type { UserRole } from "../roles";
 export type UserDTO = {
   id: string;
   name: string;
+  firstName?: string | null;
+  fatherName?: string | null;
+  lastName?: string | null;
   role: UserRole;
   status: string;
   department: string;
   departmentId: string | null;
   email: string | null;
   phone: string | null;
+  countryCode?: string | null;
+  birthDate?: string | null;
+  nationality?: string | null;
+  residence?: string | null;
   joinedAt: string | null;
   createdAt: string | null;
   updatedAt: string | null;
   profileCompleted: boolean;
   skills?: string[];
   tools?: string[];
+  agreement?: VolunteerAgreementDTO | null;
 };
 
 const STATUS_TO_ARABIC: Record<string, string> = {
@@ -59,6 +67,24 @@ export function formatJoinDate(value: string | null | undefined): string {
   const year = date.getFullYear();
   if (Number.isNaN(day)) return "—";
   return `${day} ${month} ${year}`;
+}
+
+export function formatBirthDate(value: string | null | undefined): string {
+  if (!value) return "غير مسجل";
+  const clean = value.split("T")[0];
+  const parts = clean.split("-");
+  if (parts.length === 3) {
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    const d = parseInt(parts[2], 10);
+    const date = new Date(y, m, d);
+    if (!Number.isNaN(date.getTime())) {
+      const monthName = date.toLocaleDateString("ar-EG", { month: "long" });
+      return `${d} ${monthName} ${y}`;
+    }
+    return `${y}/${parts[1]}/${parts[2]}`;
+  }
+  return value;
 }
 
 function telegramInitData(): string | null {

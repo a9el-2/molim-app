@@ -11,16 +11,15 @@ export async function GET(request: Request) {
   const auth = await authenticateRequest(request, { allowInactive: true });
   if (!auth.ok) return auth.response;
 
-  if (auth.demo) {
-    return NextResponse.json({
-      ok: true,
-      agreement: null,
-      hasActive: false,
-    });
-  }
-
   const supabase = getSupabaseServerClient();
   if (!supabase) {
+    if (auth.demo) {
+      return NextResponse.json({
+        ok: true,
+        agreement: null,
+        hasActive: false,
+      });
+    }
     return NextResponse.json(
       { error: "الخدمة غير متاحة مؤقتاً." },
       { status: 503 }
@@ -30,10 +29,9 @@ export async function GET(request: Request) {
   const { data, error } = await supabase
     .from("volunteer_agreements")
     .select(
-      "id, duration_months, signed_at, expires_at, agreement_version, status, is_renewal"
+      "id, duration_months, signed_at, expires_at, agreement_version, status, is_renewal, notes"
     )
     .eq("user_id", auth.user.id)
-    .eq("status", "active")
     .order("signed_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -48,16 +46,17 @@ export async function GET(request: Request) {
 
   const now = new Date();
   const isActuallyActive =
-    data !== null && new Date(data.expires_at) > now;
+    data !== null &&
+    data.status === "active" &&
+    new Date(data.expires_at) > now;
 
   // إذا انتهت صلاحيتها، نحدّثها تلقائياً إلى expired
-  if (data && !isActuallyActive) {
+  if (data && data.status === "active" && !isActuallyActive) {
     await supabase
       .from("volunteer_agreements")
       .update({ status: "expired" })
       .eq("id", data.id);
-
-    return NextResponse.json({ ok: true, agreement: null, hasActive: false });
+    data.status = "expired";
   }
 
   return NextResponse.json({

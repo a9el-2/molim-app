@@ -8,14 +8,22 @@ import Button from "../components/Button";
 import PageTitle from "../components/PageTitle";
 import { useAuth } from "../lib/auth-context";
 import { ROLE_NAMES } from "../lib/roles";
-import { fetchUser, fetchMyHours, statusToArabic, formatJoinDate } from "../lib/supabase/dto";
-import type { UserDTO } from "../lib/supabase/dto";
+import {
+  fetchUser,
+  fetchMyHours,
+  fetchMyAgreement,
+  statusToArabic,
+  formatJoinDate,
+  formatBirthDate,
+} from "../lib/supabase/dto";
+import type { UserDTO, VolunteerAgreementDTO } from "../lib/supabase/dto";
 import type { UserRole } from "../lib/roles";
 
 export default function AccountPage() {
   const { user: currentUser, telegram } = useAuth();
 
   const [dbUser, setDbUser] = useState<UserDTO | null>(null);
+  const [agreement, setAgreement] = useState<VolunteerAgreementDTO | null>(null);
   const [showTelegram, setShowTelegram] = useState(false);
   const [totalApprovedHours, setTotalApprovedHours] = useState(0);
   const [tasksCount, setTasksCount] = useState(0);
@@ -25,9 +33,20 @@ export default function AccountPage() {
       fetchUser(currentUser.id).then((fetched) => {
         if (fetched) {
           setDbUser(fetched);
+          if (fetched.agreement) {
+            setAgreement((prev) => prev ?? fetched.agreement ?? null);
+          }
         }
       });
     }
+
+    fetchMyAgreement()
+      .then((res) => {
+        if (res && res.ok && res.agreement) {
+          setAgreement(res.agreement);
+        }
+      })
+      .catch(() => {});
 
     fetchMyHours()
       .then((res) => {
@@ -75,6 +94,46 @@ export default function AccountPage() {
 
   const userSkills = Array.isArray(dbUser?.skills) ? dbUser.skills : [];
   const userTools = Array.isArray(dbUser?.tools) ? dbUser.tools : [];
+
+  const activeAgreement = agreement ?? dbUser?.agreement ?? null;
+  const isAgreementActive =
+    activeAgreement &&
+    activeAgreement.status === "active" &&
+    new Date(activeAgreement.expires_at).getTime() > Date.now();
+
+  const agreementStatusLabel = activeAgreement
+    ? isAgreementActive
+      ? "سارية"
+      : "منتهية"
+    : "غير مسجلة";
+
+  const agreementStatusClass = activeAgreement
+    ? isAgreementActive
+      ? "text-green-600"
+      : "text-amber-600"
+    : "text-molim-muted";
+
+  const agreementExpiryDate = activeAgreement?.expires_at
+    ? formatJoinDate(activeAgreement.expires_at)
+    : "—";
+
+  const displayBirthDate = dbUser?.birthDate
+    ? formatBirthDate(dbUser.birthDate)
+    : currentUser.birthDate
+    ? formatBirthDate(currentUser.birthDate)
+    : "غير مسجل";
+
+  const displayNationality =
+    dbUser?.nationality || currentUser.nationality || "—";
+
+  const displayResidence =
+    dbUser?.residence || currentUser.residence || "—";
+
+  const displayPhone =
+    dbUser?.phone || currentUser.phone || "غير مسجل";
+
+  const displayEmail =
+    dbUser?.email || currentUser.email || "غير مسجل";
 
   return (
     <PageShell>
@@ -134,14 +193,31 @@ export default function AccountPage() {
 
           <InfoBox
             label="الاتفاقية"
-            value="سارية"
-            valueClass="text-green-600"
+            value={agreementStatusLabel}
+            valueClass={agreementStatusClass}
           />
 
           <InfoBox
             label="تاريخ الانتهاء"
-            value="—"
+            value={agreementExpiryDate}
           />
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-molim pt-3">
+          <p className="text-xs text-molim-muted">
+            {isAgreementActive
+              ? "اتفاقية التطوع معتمدة وسارية."
+              : activeAgreement
+              ? "انتهت صلاحية اتفاقية التطوع، يرجى تجديدها."
+              : "لم يتم تسجيل اتفاقية تطوع بعد."}
+          </p>
+
+          <Link
+            href="/agreement"
+            className="inline-flex items-center gap-1 text-xs font-black text-molim-orange hover:underline"
+          >
+            {isAgreementActive ? "عرض الاتفاقية ←" : "توقيع / تجديد الاتفاقية ←"}
+          </Link>
         </div>
 
 
@@ -161,27 +237,27 @@ export default function AccountPage() {
 
         <InfoBox
           label="البريد الإلكتروني"
-          value={dbUser?.email || "غير مسجل"}
+          value={displayEmail}
         />
 
         <InfoBox
           label="رقم الهاتف"
-          value={dbUser?.phone || "غير مسجل"}
+          value={displayPhone}
         />
 
         <InfoBox
           label="تاريخ الميلاد"
-          value="غير مسجل"
+          value={displayBirthDate}
         />
 
         <InfoBox
           label="الجنسية"
-          value="—"
+          value={displayNationality}
         />
 
         <InfoBox
           label="بلد الإقامة"
-          value="—"
+          value={displayResidence}
         />
       </div>
 

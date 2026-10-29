@@ -79,22 +79,57 @@ export async function GET(
     department = dept?.name ? String(dept.name) : "غير محدد";
   }
 
+  // جلب أحدث اتفاقية تطوع للعضو
+  let latestAgreement: Record<string, unknown> | null = null;
+  const { data: agreementRow } = await supabase
+    .from("volunteer_agreements")
+    .select(
+      "id, user_id, duration_months, signed_at, expires_at, agreement_version, status, is_renewal, notes"
+    )
+    .eq("user_id", id)
+    .order("signed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (agreementRow) {
+    const isActuallyActive =
+      agreementRow.status === "active" &&
+      new Date(agreementRow.expires_at).getTime() > Date.now();
+
+    if (agreementRow.status === "active" && !isActuallyActive) {
+      await supabase
+        .from("volunteer_agreements")
+        .update({ status: "expired" })
+        .eq("id", agreementRow.id);
+      agreementRow.status = "expired";
+    }
+    latestAgreement = agreementRow;
+  }
+
   return NextResponse.json({
     user: {
       id: String(record.id ?? ""),
       name: pickName(record),
+      firstName: typeof record.first_name === "string" ? record.first_name : null,
+      fatherName: typeof record.father_name === "string" ? record.father_name : null,
+      lastName: typeof record.last_name === "string" ? record.last_name : null,
       role: String(record.role ?? "VOLUNTEER"),
       status: String(record.status ?? "pending"),
       department,
       departmentId,
       email: typeof record.email === "string" ? record.email : null,
       phone: typeof record.phone === "string" ? record.phone : null,
+      countryCode: typeof record.country_code === "string" ? record.country_code : null,
+      birthDate: typeof record.birth_date === "string" ? record.birth_date : null,
+      nationality: typeof record.nationality === "string" ? record.nationality : null,
+      residence: typeof record.residence === "string" ? record.residence : null,
       joinedAt: typeof record.joined_at === "string" ? record.joined_at : null,
       createdAt: typeof record.created_at === "string" ? record.created_at : null,
       updatedAt: typeof record.updated_at === "string" ? record.updated_at : null,
       profileCompleted: record.profile_completed !== false,
       skills: Array.isArray(record.skills) ? record.skills : [],
       tools: Array.isArray(record.tools) ? record.tools : [],
+      agreement: latestAgreement,
     },
   });
 }

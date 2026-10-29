@@ -20,6 +20,10 @@ export type UserProfile = User & {
   badge: string;
   email?: string;
   phone?: string;
+  countryCode?: string;
+  birthDate?: string;
+  nationality?: string;
+  residence?: string;
   status?: string;
   profileCompleted?: boolean;
 };
@@ -39,6 +43,10 @@ export const MOCK_PROFILES: Record<UserRole, UserProfile> = {
     department: "البحث",
     badge: "متطوعة",
     email: "sara.m@molim.org",
+    phone: "+966500000015",
+    birthDate: "2007-10-23",
+    nationality: "يمنية",
+    residence: "اليمن",
     status: "active",
   },
   DEPARTMENT_HEAD: {
@@ -48,6 +56,10 @@ export const MOCK_PROFILES: Record<UserRole, UserProfile> = {
     department: "الإعلام",
     badge: "رئيس قسم الإعلام",
     email: "ahmed.k@molim.org",
+    phone: "+966500000010",
+    birthDate: "1998-05-12",
+    nationality: "سعودي",
+    residence: "المملكة العربية السعودية",
     status: "active",
   },
   HR: {
@@ -57,6 +69,10 @@ export const MOCK_PROFILES: Record<UserRole, UserProfile> = {
     department: "الموارد البشرية",
     badge: "مسؤول الموارد البشرية",
     email: "khaled.a@molim.org",
+    phone: "+966500000008",
+    birthDate: "1995-11-20",
+    nationality: "يمني",
+    residence: "المملكة العربية السعودية",
     status: "active",
   },
   ADMIN: {
@@ -66,6 +82,10 @@ export const MOCK_PROFILES: Record<UserRole, UserProfile> = {
     department: "الإدارة",
     badge: "الإدارة العليا",
     email: "mohammed.a@molim.org",
+    phone: "+966500000003",
+    birthDate: "1994-08-15",
+    nationality: "سعودي",
+    residence: "المملكة العربية السعودية",
     status: "active",
   },
   SUPER_ADMIN: {
@@ -75,6 +95,10 @@ export const MOCK_PROFILES: Record<UserRole, UserProfile> = {
     department: "الإدارة العامة",
     badge: "الرئيس العام",
     email: "aseel@molim.org",
+    phone: "+966500000001",
+    birthDate: "2008-04-03",
+    nationality: "يمني",
+    residence: "المملكة العربية السعودية",
     status: "active",
   },
 };
@@ -221,6 +245,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             badge: ROLE_NAMES[real.role as UserRole] || "عضو",
             email: real.email ?? undefined,
             phone: real.phone ?? undefined,
+            countryCode: real.countryCode ?? undefined,
+            birthDate: real.birthDate ?? undefined,
+            nationality: real.nationality ?? undefined,
+            residence: real.residence ?? undefined,
             status: real.status,
             profileCompleted: real.profileCompleted,
           });
