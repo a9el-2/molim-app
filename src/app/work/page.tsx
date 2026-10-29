@@ -101,14 +101,26 @@ type ReviewAssignment = {
   task_due_date: string | null;
 };
 
-type TeamMember = {
+type TeamTask = {
   id: string;
-  name: string;
-  role: UserRole;
+  title: string;
+  description: string | null;
+  target_type: string;
+  target_user_id: string | null;
+  target_department_ids: string[] | null;
   department_id: string | null;
-  active_tasks_count: number;
-  overdue_tasks_count: number;
-  approved_tasks_count: number;
+  department_name: string | null;
+  status: string;
+  lifecycle_status?: string;
+  priority?: string;
+  required_assignees?: number | null;
+  requested_hours: number | null;
+  due_date: string | null;
+  created_by: string;
+  creator_name: string;
+  creator_number: string;
+  created_at: string;
+  updated_at: string;
 };
 
 type DepartmentItem = {
@@ -236,6 +248,10 @@ function getLifecycleStatusLabel(status: string): string {
   switch (status) {
     case "open":
       return "مفتوحة";
+    case "in_progress":
+      return "قيد التنفيذ";
+    case "in_review":
+      return "قيد المراجعة";
     case "completed":
       return "مكتملة";
     case "cancelled":
@@ -249,12 +265,35 @@ function getLifecycleBadgeClass(status: string): string {
   switch (status) {
     case "open":
       return "bg-green-500/10 text-green-700 dark:text-green-300 border border-green-500/20";
+    case "in_progress":
+      return "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20";
+    case "in_review":
+      return "bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20";
     case "completed":
       return "bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20";
     case "cancelled":
       return "bg-molim-soft text-molim-muted border border-[var(--card-border)]";
     default:
       return "bg-molim-soft text-molim-muted border border-[var(--card-border)]";
+  }
+}
+
+function getTaskScopeLabel(targetType: string | null | undefined): string {
+  switch (targetType) {
+    case "self":
+      return "شخصية";
+    case "own_department":
+    case "department":
+      return "لقسم محدد";
+    case "departments":
+      return "لأقسام محددة";
+    case "all":
+    case "all_departments":
+      return "عامة (كل الأقسام)";
+    case "person":
+      return "موجهة لشخص";
+    default:
+      return targetType || "عامة";
   }
 }
 
@@ -287,8 +326,8 @@ export default function WorkPage() {
   const [reviewLoading, setReviewLoading] = useState<boolean>(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
 
-  // بيانات تبويب الفريق
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  // بيانات تبويب مهام الفريق
+  const [teamTasks, setTeamTasks] = useState<TeamTask[]>([]);
   const [teamLoading, setTeamLoading] = useState<boolean>(false);
   const [teamError, setTeamError] = useState<string | null>(null);
 
@@ -416,24 +455,24 @@ export default function WorkPage() {
     }
   }, [isNonVolunteer]);
 
-  // جلب بيانات الفريق
+  // جلب مهام الفريق (كل المهام المنشأة والموجودة)
   const loadTeamData = useCallback(async () => {
     if (!isNonVolunteer) return;
     setTeamLoading(true);
     setTeamError(null);
 
     try {
-      const res = await fetch("/api/task-assignments/team", {
+      const res = await fetch("/api/tasks", {
         headers: authHeaders(),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
-        setTeamError(data.error || "تعذر جلب بيانات الفريق.");
+        setTeamError(data.error || "تعذر جلب مهام الفريق.");
       } else {
-        setTeamMembers(Array.isArray(data.members) ? data.members : []);
+        setTeamTasks(Array.isArray(data.tasks) ? data.tasks : []);
       }
     } catch {
-      setTeamError("فشل الاتصال بالخادم أثناء جلب بيانات الفريق.");
+      setTeamError("فشل الاتصال بالخادم أثناء جلب مهام الفريق.");
     } finally {
       setTeamLoading(false);
     }
@@ -1043,7 +1082,7 @@ export default function WorkPage() {
                       : "border-transparent text-molim-muted hover:text-molim-foreground"
                   }`}
                 >
-                  الفريق ({teamMembers.length})
+                  مهام الفريق ({teamTasks.length})
                 </button>
               </>
             )}
@@ -1514,13 +1553,13 @@ export default function WorkPage() {
               </div>
             )}
 
-            {/* التبويب 5: الفريق (لغير المتطوع) */}
+            {/* التبويب 5: مهام الفريق (لغير المتطوع) */}
             {isNonVolunteer && activeTab === "team" && (
               <div className="space-y-4">
                 {teamLoading && (
                   <div className="py-12 text-center text-molim-muted">
                     <div className="h-6 w-6 mx-auto animate-spin rounded-full border-2 border-molim border-t-[var(--molim-orange)] mb-2" />
-                    <p className="text-xs font-medium">جاري جلب بيانات الفريق...</p>
+                    <p className="text-xs font-medium">جاري جلب مهام الفريق...</p>
                   </div>
                 )}
 
@@ -1533,57 +1572,113 @@ export default function WorkPage() {
                   </div>
                 )}
 
-                {!teamLoading && !teamError && teamMembers.length === 0 && (
+                {!teamLoading && !teamError && teamTasks.length === 0 && (
                   <Card className="p-8 text-center text-molim-muted">
-                    <p className="text-sm font-medium">لا يوجد أعضاء في الفريق حالياً.</p>
+                    <p className="text-sm font-medium">لا توجد أي مهام منشأة حالياً في الفريق.</p>
                   </Card>
                 )}
 
-                {!teamLoading && !teamError && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {teamMembers.map((m) => (
-                      <Card key={m.id} className="p-4 sm:p-5 space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <h3 className="text-sm font-bold text-molim-foreground">{m.name}</h3>
-                            <p className="text-xs text-molim-muted mt-0.5">{m.id}</p>
-                          </div>
+                {!teamLoading && !teamError && teamTasks.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-molim-muted px-1">
+                      <span>إجمالي المهام المنشأة: <strong className="text-molim-foreground">{teamTasks.length}</strong></span>
+                    </div>
 
-                          <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-molim-soft text-molim-foreground border border-[var(--card-border)]">
-                            {ROLE_NAMES[m.role] || m.role}
-                          </span>
-                        </div>
+                    {teamTasks.map((t) => {
+                      const isUrgent = t.priority === "urgent";
+                      const statusVal = t.lifecycle_status || t.status || "open";
+                      const dueDate = t.due_date;
+                      const isOverdue = Boolean(
+                        dueDate &&
+                          dueDate.trim() < todayRiyadh &&
+                          (statusVal === "open" || statusVal === "in_progress")
+                      );
 
-                        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[var(--card-border)] text-center text-xs">
-                          <div className="p-2 rounded bg-molim-soft">
-                            <span className="text-molim-muted block text-[11px]">النشطة</span>
-                            <span className="font-bold text-molim-foreground text-sm">
-                              {m.active_tasks_count}
-                            </span>
-                          </div>
+                      return (
+                        <Card key={t.id} className="p-4 sm:p-5 space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                            <div className="space-y-2 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h2 className="text-base font-bold text-molim-foreground break-words">
+                                  {t.title}
+                                </h2>
 
-                          <div className="p-2 rounded bg-molim-soft">
-                            <span className="text-molim-muted block text-[11px]">المتأخرة</span>
-                            <span
-                              className={`font-bold text-sm ${
-                                m.overdue_tasks_count > 0
-                                  ? "text-red-600 dark:text-red-400"
-                                  : "text-molim-foreground"
-                              }`}
-                            >
-                              {m.overdue_tasks_count}
-                            </span>
-                          </div>
+                                {isUrgent && (
+                                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20">
+                                    عاجلة
+                                  </span>
+                                )}
 
-                          <div className="p-2 rounded bg-molim-soft">
-                            <span className="text-molim-muted block text-[11px]">المعتمدة</span>
-                            <span className="font-bold text-molim-foreground text-sm">
-                              {m.approved_tasks_count}
-                            </span>
+                                <span
+                                  className={`text-xs font-bold px-2 py-0.5 rounded ${getLifecycleBadgeClass(
+                                    statusVal
+                                  )}`}
+                                >
+                                  {getLifecycleStatusLabel(statusVal)}
+                                </span>
+                              </div>
+
+                              {t.description && (
+                                <p className="text-xs text-molim-muted leading-relaxed line-clamp-3">
+                                  {t.description}
+                                </p>
+                              )}
+
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-molim-muted pt-1">
+                                <span>
+                                  المنشئ:{" "}
+                                  <strong className="text-molim-foreground">
+                                    {t.creator_name || t.created_by}
+                                  </strong>
+                                  {t.creator_number ? ` (${t.creator_number})` : ""}
+                                </span>
+
+                                {t.department_name && (
+                                  <span>
+                                    القسم:{" "}
+                                    <strong className="text-molim-foreground">
+                                      {t.department_name}
+                                    </strong>
+                                  </span>
+                                )}
+
+                                {dueDate ? (
+                                  <span
+                                    className={
+                                      isOverdue
+                                        ? "text-red-600 dark:text-red-400 font-bold"
+                                        : ""
+                                    }
+                                  >
+                                    الموعد: {dueDate}
+                                    {isOverdue ? " (متأخرة)" : ""}
+                                  </span>
+                                ) : (
+                                  <span>الموعد: غير محدد</span>
+                                )}
+
+                                {t.required_assignees && (
+                                  <span>المقاعد: {t.required_assignees}</span>
+                                )}
+
+                                <span>
+                                  النطاق:{" "}
+                                  <strong className="text-molim-foreground">
+                                    {getTaskScopeLabel(t.target_type)}
+                                  </strong>
+                                </span>
+
+                                {t.created_at && (
+                                  <span className="text-[11px]">
+                                    تاريخ الإنشاء: {new Date(t.created_at).toLocaleDateString("ar-SA")}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </Card>
-                    ))}
+                        </Card>
+                      );
+                    })}
                   </div>
                 )}
               </div>
