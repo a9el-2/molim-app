@@ -263,12 +263,6 @@ export default function AccountPage() {
         />
 
         <InfoBox
-          label="رمز الدولة"
-          value={displayCountryCode}
-          dir="ltr"
-        />
-
-        <InfoBox
           label="رقم الهاتف"
           value={displayPhone}
           dir="ltr"
