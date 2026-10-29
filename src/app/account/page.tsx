@@ -129,8 +129,30 @@ export default function AccountPage() {
   const displayResidence =
     dbUser?.residence || currentUser.residence || "—";
 
-  const displayPhone =
-    dbUser?.phone || currentUser.phone || "غير مسجل";
+  const rawCountryCode = dbUser?.countryCode || currentUser.countryCode || null;
+  const rawPhone = dbUser?.phone || currentUser.phone || null;
+
+  const displayCountryCode = (() => {
+    if (rawCountryCode && rawCountryCode.trim()) {
+      const code = rawCountryCode.trim();
+      return code.startsWith("+") ? code : `+${code}`;
+    }
+    if (rawPhone && rawPhone.startsWith("+")) {
+      const match = rawPhone.match(/^(\+\d{1,4})/);
+      if (match) return match[1];
+    }
+    return "—";
+  })();
+
+  const displayPhone = (() => {
+    if (!rawPhone || !rawPhone.trim()) return "غير مسجل";
+    const phone = rawPhone.trim();
+    if (phone.startsWith("+")) return phone;
+    if (displayCountryCode && displayCountryCode !== "—") {
+      return `${displayCountryCode} ${phone}`;
+    }
+    return phone;
+  })();
 
   const displayEmail =
     dbUser?.email || currentUser.email || "غير مسجل";
@@ -241,8 +263,15 @@ export default function AccountPage() {
         />
 
         <InfoBox
+          label="رمز الدولة"
+          value={displayCountryCode}
+          dir="ltr"
+        />
+
+        <InfoBox
           label="رقم الهاتف"
           value={displayPhone}
+          dir="ltr"
         />
 
         <InfoBox
@@ -454,10 +483,12 @@ function InfoBox({
   label,
   value,
   valueClass = "",
+  dir,
 }: {
   label: string;
   value: string;
   valueClass?: string;
+  dir?: "ltr" | "rtl";
 }) {
   return (
     <div className="molim-card p-4">
@@ -466,6 +497,7 @@ function InfoBox({
       </p>
 
       <p
+        dir={dir}
         className={`mt-1 break-words text-sm font-bold ${valueClass}`}
       >
         {value}
