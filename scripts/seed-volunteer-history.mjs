@@ -53,9 +53,9 @@ function parseDate(d) {
 
 // ── Extract access_codes from members field ─────────────────────
 function extractCodes(field) {
-  const codes = []; const re = /([^\s,]+)\s+\(/g; let m;
-  while ((m = re.exec(field)) !== null) codes.push(m[1].trim());
-  return [...new Set(codes)];
+  if (!field) return [];
+  const matches = field.match(/[A-Za-z0-9#@-]{5,15}/g) || [];
+  return [...new Set(matches)];
 }
 
 // ── Main ─────────────────────────────────────────────────────────
@@ -86,16 +86,21 @@ async function main() {
     const endDate    = parseDate(task['تاريخ الإنجاز'] || '');
     const startDate  = parseDate(task['تاريخ البدء'] || '');
     const status     = (task['حالة المهمة'] || '').trim();
-    const members    = task['أعضاء المهمة'] || '';
+    const members    = (task['أعضاء المهمة'] || '') + ' ' + (task['task_members (قديم)'] || '') + ' ' + (task['مدير الفريق / مدير المهمة'] || '');
 
     if (!title || status !== 'مكتملة' || hours <= 0) continue;
 
     const codes = extractCodes(members);
     for (const code of codes) {
       if (!codeToTasks[code]) codeToTasks[code] = [];
-      // الساعات تُوزَّع بالتساوي على عدد الأعضاء المشاركين
-      const perMemberHours = codes.length > 0 ? Math.round((hours / codes.length) * 10) / 10 : hours;
-      codeToTasks[code].push({ title, hours: perMemberHours, date: startDate ?? endDate ?? '2026-09-01', department: dept, description: desc });
+      // الساعات كاملة للمهمة لكل عضو مشارك فيها
+      codeToTasks[code].push({
+        title,
+        hours,
+        date: startDate ?? endDate ?? '2026-09-01',
+        department: dept,
+        description: desc
+      });
     }
   }
 
@@ -127,6 +132,8 @@ async function main() {
         email,
         total_hours:  hoursRaw,
         tasks:        volTasks,
+        claimed_by:   null, // تصفير أي مطالبة سابقة
+        claimed_at:   null,
         updated_at:   new Date().toISOString(),
       }, { onConflict: 'access_code' });
 
@@ -139,9 +146,11 @@ async function main() {
     }
   }
 
-  console.log('\n' + '='.repeat(50));
-  console.log(`✅ تم: ${inserted} | ⏩ تخطي: ${skipped} | ❌ أخطاء: ${errors}`);
-  console.log('✔️  انتهى seed الجدول.');
+  console.log('\n───────────────────────────────────────');
+  console.log(`✨ اكتملت التعبئة:`);
+  console.log(`   تم الحفظ: ${inserted}`);
+  console.log(`   تخطي (بدون بيانات): ${skipped}`);
+  console.log(`   أخطاء: ${errors}`);
 }
 
-main().catch(e => { console.error('❌', e); process.exit(1); });
+main().catch(console.error);

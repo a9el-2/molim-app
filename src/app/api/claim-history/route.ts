@@ -106,7 +106,7 @@ export async function POST(request: Request) {
         lifecycle_status: "completed",
         priority: "normal",
         required_assignees: 1,
-        requested_hours: Math.min(hours, MAX_HOURS_PER_LOG),
+        requested_hours: hours,
         due_date: date,
         created_by: adminId,
         assigned_to: auth.user.id,
