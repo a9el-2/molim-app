@@ -835,3 +835,66 @@ export async function fetchTasks(): Promise<{
   return { ok: true, tasks: data.tasks ?? [] };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// استعادة السجل التاريخي (claim-history)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type HistoryTask = {
+  title: string;
+  hours: number;
+  date: string;
+  department: string;
+  description: string;
+};
+
+export type HistoryPreviewDTO = {
+  name: string;
+  totalHours: number;
+  tasksCount: number;
+  tasks: HistoryTask[];
+  alreadyClaimed: boolean;
+  claimedByMe: boolean;
+};
+
+export type ClaimHistoryResult =
+  | { ok: true; summary: { volunteerName: string; totalHours: number; tasksCount: number } }
+  | { ok: false; error: string };
+
+/** معاينة سجل الاستعادة (GET) */
+export async function previewHistory(
+  code: string
+): Promise<{ ok: true; data: HistoryPreviewDTO } | { ok: false; error: string }> {
+  const response = await fetch(
+    `/api/claim-history?code=${encodeURIComponent(code.trim())}`,
+    { headers: authHeaders() }
+  ).catch(() => null);
+
+  if (!response) return { ok: false, error: "تعذّر التواصل مع الخادم." };
+
+  const data = await parseJson<HistoryPreviewDTO & { error?: string }>(response);
+  if (!response.ok) return { ok: false, error: data?.error ?? "رمز غير صحيح." };
+  return { ok: true, data: data as HistoryPreviewDTO };
+}
+
+/** تأكيد الاستعادة (POST) */
+export async function claimHistory(code: string): Promise<ClaimHistoryResult> {
+  const response = await fetch("/api/claim-history", {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ access_code: code.trim() }),
+  }).catch(() => null);
+
+  if (!response) return { ok: false, error: "تعذّر التواصل مع الخادم." };
+
+  const data = await parseJson<{
+    ok?: boolean;
+    summary?: { volunteerName: string; totalHours: number; tasksCount: number };
+    error?: string;
+  }>(response);
+
+  if (!response.ok || !data?.ok) {
+    return { ok: false, error: data?.error ?? "تعذّرت الاستعادة." };
+  }
+  return { ok: true, summary: data.summary! };
+}
+

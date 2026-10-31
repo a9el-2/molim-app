@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -274,6 +274,24 @@ export default function MolimHeader() {
             pathname={pathname}
             onNavigate={closeMenu}
           />
+
+          {/* استعادة البيانات */}
+          <section className="mb-6">
+            <p className="mb-2 px-3 text-[10px] font-bold text-molim-muted">
+              السجل السابق
+            </p>
+            <Link
+              href="/claim-history"
+              onClick={closeMenu}
+              className={`molim-sidebar-item flex items-center justify-between${
+                pathname === "/claim-history" ? " active" : ""}`}
+            >
+              <span>استعادة بياناتي</span>
+              <span className="rounded bg-molim-orange/20 px-1.5 py-0.5 text-[9px] font-black text-molim-orange">
+                ⚠ مهم
+              </span>
+            </Link>
+          </section>
 
           {/* رئيس القسم */}
           {isDepartmentHead && (

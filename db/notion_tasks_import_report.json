@@ -1,0 +1,1260 @@
+{
+  "imported": [
+    {
+      "title": "الدعم الفني",
+      "taskId": "8cfe7ae2-7707-4819-adbe-7e9520a2fed5",
+      "hours": 30,
+      "members": 1
+    },
+    {
+      "title": "إعلان لمنح",
+      "taskId": "00bad5aa-9cf0-4d67-9f16-cf515ae85e43",
+      "hours": 7,
+      "members": 1
+    },
+    {
+      "title": "اختيار اسم و شعار للفريق",
+      "taskId": "6148544a-1823-4a3e-bfaa-42b66ca7fd73",
+      "hours": 7,
+      "members": 1
+    },
+    {
+      "title": "عمل خطابات توصية للفائز الأول بالمسابقة",
+      "taskId": "86f4026c-0104-4c25-a8fb-a593ad493d21",
+      "hours": 7,
+      "members": 1
+    },
+    {
+      "title": "عمل خطاب توصية للفائز الثاني",
+      "taskId": "4ab4808c-3b81-40c3-bbea-7a70c4d22b8e",
+      "hours": 3,
+      "members": 1
+    },
+    {
+      "title": "بوست للمنح (إعلانات )",
+      "taskId": "85dffd6d-226c-437e-a5fc-8f47b091a2d2",
+      "hours": 28,
+      "members": 1
+    },
+    {
+      "title": "اعلانات تصاميم",
+      "taskId": "a43277b6-d4af-45d9-a6a6-18a34cc9742c",
+      "hours": 3,
+      "members": 1
+    },
+    {
+      "title": "دليل الطالب",
+      "taskId": "b3683090-3b44-46de-88d9-a6ee1df32c72",
+      "hours": 27,
+      "members": 1
+    },
+    {
+      "title": "5 بوست اعلان",
+      "taskId": "fbb4e2ee-6ac4-4615-9296-389f6cd1c79e",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "تدقيق بالكتابة",
+      "taskId": "02cb6b92-5a1b-4491-be24-fc81656a8888",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "إعلان مسابقه",
+      "taskId": "f89f11b5-fc29-4748-9717-48fbc115df18",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "عمل فيديو تعريفي بملم",
+      "taskId": "4c8da0c6-2800-4ebf-a503-85a6787273c6",
+      "hours": 7,
+      "members": 1
+    },
+    {
+      "title": "عمل غلاف الفيديو التعريفي بملم",
+      "taskId": "f8013610-5c5a-4d73-930b-ca7992fcf830",
+      "hours": 1,
+      "members": 1
+    },
+    {
+      "title": "إنشاء قاعدة بيانات ملم 1",
+      "taskId": "d870c0dd-3501-4737-b263-71661860ea42",
+      "hours": 25,
+      "members": 1
+    },
+    {
+      "title": "إنشاء قاعدة بيانات طلبات الشهادات ومهام فريق ملم القاعدة الرسمية الثانية",
+      "taskId": "48566778-8d83-492d-952b-8b508cc18188",
+      "hours": 27,
+      "members": 1
+    },
+    {
+      "title": "تصميم وكتابة عقد ملم التطوعي",
+      "taskId": "193472a2-93bc-47b0-a60b-5273680ffc1d",
+      "hours": 2,
+      "members": 1
+    },
+    {
+      "title": "تصميم نماذج وشهادات ملم",
+      "taskId": "f5e0fab6-1df0-4739-a409-e2664915d019",
+      "hours": 7,
+      "members": 1
+    },
+    {
+      "title": "مراجعة دفعة المتقدمين للتطوع بملم الدفعة الاولى",
+      "taskId": "ae40c516-dd3f-48be-8cf1-ac4ab6642c94",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "ادارة ومراجعة حسابات الاعضاء وتحديثها وتعبئتهم لفورم المهام",
+      "taskId": "f5578d95-1dda-4a9d-8356-a7e15634013f",
+      "hours": 7,
+      "members": 1
+    },
+    {
+      "title": "اجتماع مع فريق ارام",
+      "taskId": "8a252160-1fd0-47a2-9390-20fa20265609",
+      "hours": 2,
+      "members": 2
+    },
+    {
+      "title": "كتابة سيناريو فيديو تعريفي بملم",
+      "taskId": "eece0d9a-30bf-4fb1-a838-e9215180b0c4",
+      "hours": 1,
+      "members": 1
+    },
+    {
+      "title": "إنشاء وتطوير موقع ملم",
+      "taskId": "65f88946-af71-451f-a5aa-13e493010ed7",
+      "hours": 30,
+      "members": 1
+    },
+    {
+      "title": "إنشاء لوحة تحكم لإضافة المنح الى الموقع",
+      "taskId": "6f9b79a3-9237-4bc8-b2c9-190277865ed4",
+      "hours": 30,
+      "members": 1
+    },
+    {
+      "title": "إضافة لوحة تحكم لإصدار شهادات ملم التطوعية",
+      "taskId": "e82b3caa-4365-4aba-8a42-0fb0a6c13150",
+      "hours": 30,
+      "members": 1
+    },
+    {
+      "title": "ملف كيفية كتابة خطاب التوصية",
+      "taskId": "1cfa140d-72b1-4305-ab51-12fda99b2610",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "ادخال المتطوعين الجدد",
+      "taskId": "52f57bac-73e5-41a9-8f1b-b3ff744f7b1b",
+      "hours": 27,
+      "members": 1
+    },
+    {
+      "title": "تعديل على خطاب التوصية",
+      "taskId": "81f2e923-4a56-48f7-a400-3bb1821b91ea",
+      "hours": 1,
+      "members": 1
+    },
+    {
+      "title": "تصميم هُوية مُلم من الصفر",
+      "taskId": "a639b153-37cc-47fa-8105-aac9680bb59c",
+      "hours": 4,
+      "members": 1
+    },
+    {
+      "title": "تصميم غلاف و اعلان +تفاعل",
+      "taskId": "054fcec4-8e59-4a7b-830b-7afc48719f98",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "تنسيق لاجتماع بين رؤساء الاقسام في مُلم",
+      "taskId": "a55835bd-8733-43f2-ac63-f59d13e0618b",
+      "hours": 3,
+      "members": 2
+    },
+    {
+      "title": "بوست انستا",
+      "taskId": "9b7487e3-4703-4786-8a03-66cd25d7f8d5",
+      "hours": 15,
+      "members": 1
+    },
+    {
+      "title": "عشوائيات ملم",
+      "taskId": "f3b3b294-8d99-4b45-803c-5996f260d9d3",
+      "hours": 30,
+      "members": 1
+    },
+    {
+      "title": "ملف عن كيفية كتابة السيرة الذاتية cv",
+      "taskId": "c5ca2003-50b4-40aa-84bf-e2cd46e61abe",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "ادارة قسم السوشل ميديا واعطاء ملاحضات",
+      "taskId": "8831a027-8519-4be3-9d10-80a734770a72",
+      "hours": 7,
+      "members": 1
+    },
+    {
+      "title": "فيديو ترويجي شورت  عن منصة ملم",
+      "taskId": "1f176f77-0841-4344-be99-d049cca7ecad",
+      "hours": 8,
+      "members": 1
+    },
+    {
+      "title": "الإشراف على قروبات ملم",
+      "taskId": "768c19f4-fe27-4506-a150-3438aed459d0",
+      "hours": 30,
+      "members": 1
+    },
+    {
+      "title": "بحث عن المنح فيصل قاسم 29 ساعة",
+      "taskId": "62f54721-4685-414e-90ce-531a967dd177",
+      "hours": 29,
+      "members": 1
+    },
+    {
+      "title": "البحث عن منح مقتدى الصفوي 40 ساعات",
+      "taskId": "405f0f36-28e9-4d0b-bf94-a52a37f0292d",
+      "hours": 40,
+      "members": 1
+    },
+    {
+      "title": "البحث عن المنح أسيل السري 15 ساعة",
+      "taskId": "054fdf60-5ebb-4b9f-8187-91063ace3c10",
+      "hours": 15,
+      "members": 1
+    },
+    {
+      "title": "البحث عن منح حسام خصروف 35 ساعة",
+      "taskId": "44b5f015-4e23-469e-b8ca-663d9910a3f5",
+      "hours": 35,
+      "members": 1
+    },
+    {
+      "title": "بحث عن منح  أبرار عباس 27 ساعة",
+      "taskId": "10e429c6-e541-4a00-8530-52789afcd240",
+      "hours": 27,
+      "members": 1
+    },
+    {
+      "title": "بحث عن المنح صفيه ادريس 20 ساعة",
+      "taskId": "9431a2fe-0aae-41c3-bede-99d255d3876a",
+      "hours": 20,
+      "members": 1
+    },
+    {
+      "title": "بحث عن منح  أبرار  عباس 20 ساعة",
+      "taskId": "4ff9aa07-f7e4-4238-bd78-27a4bd445c97",
+      "hours": 20,
+      "members": 1
+    },
+    {
+      "title": "البحث عن منح حسام خصروف 20 ساعة",
+      "taskId": "10871dfb-03e7-4c4b-9fb6-3811f818ff94",
+      "hours": 20,
+      "members": 1
+    },
+    {
+      "title": "كتابة دليل لاختبار ايليتس",
+      "taskId": "a617fe5f-d9a9-4ce6-97e2-9bf6a39c5560",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "البحث عن منح مقتدى الصفوي 4 ساعات",
+      "taskId": "68bd13b7-eed2-482d-b9f6-a72861f8cee1",
+      "hours": 4,
+      "members": 1
+    },
+    {
+      "title": "بث تعريفي بمنحة ادرس في مصر",
+      "taskId": "255514d6-7973-433b-b7ba-8de4cc11bd70",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "تجهيز لبث تعريفي عن منحة ادرس في مصر",
+      "taskId": "af17a32c-c83a-44ed-81bd-663815b1deb6",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "بث تعريفي عن منحة ادرس في مصر",
+      "taskId": "a1de9ffc-d6cf-44d8-b8ea-e951cf3cf980",
+      "hours": 2,
+      "members": 1
+    },
+    {
+      "title": "التواصل مع المتطوعين",
+      "taskId": "12a1e4b8-d64e-4e66-88ff-9c80eff40392",
+      "hours": 20,
+      "members": 1
+    },
+    {
+      "title": "مهام روتينية+ اعلان عدد ساعات الاعضاء",
+      "taskId": "6f021663-c249-4670-a075-71d1499e761d",
+      "hours": 12,
+      "members": 1
+    },
+    {
+      "title": "تقييم ومتابعة المتطوعين",
+      "taskId": "ae8acb1d-4704-4c4c-8607-e8713f63e70f",
+      "hours": 3,
+      "members": 1
+    },
+    {
+      "title": "مراجعة حالة جميع الاعضاء واضافة المتطوعين الجدد لقاعدة البيانات",
+      "taskId": "5bb861e2-2483-4ac2-aa47-f74219115a0c",
+      "hours": 7,
+      "members": 1
+    },
+    {
+      "title": "مقطع شورت منحة أدرس في مصر",
+      "taskId": "116b92f1-0763-44e2-81c8-b34a8305b814",
+      "hours": 4,
+      "members": 1
+    },
+    {
+      "title": "دليل كتابة السيرة الذاتيه",
+      "taskId": "fcb3d3a9-4dbc-49de-b991-a9a7b47710a4",
+      "hours": 17,
+      "members": 1
+    },
+    {
+      "title": "دليل امتحان التوفل",
+      "taskId": "4c36823a-8be7-4acb-8380-ba3a6f3da786",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "دليل امتحان السات (SAT)",
+      "taskId": "23fd80d6-d62c-4218-bb98-a45b1236fff6",
+      "hours": 3,
+      "members": 1
+    },
+    {
+      "title": "فيديو شورت كورسيرا",
+      "taskId": "ca1aeeaa-70ee-4ccf-a48d-2915b815ba42",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "تعديل صوت شورت",
+      "taskId": "a3bab922-dfb3-48d7-b9b8-78972ee073a8",
+      "hours": 2,
+      "members": 1
+    },
+    {
+      "title": "تعديل صوت",
+      "taskId": "e73113c8-e870-44cc-8761-ccd7a79a6f34",
+      "hours": 2,
+      "members": 1
+    },
+    {
+      "title": "عمل شورت التطوع",
+      "taskId": "1a7890b1-f97e-4c78-828d-1fe83d18d773",
+      "hours": 7,
+      "members": 1
+    },
+    {
+      "title": "مونتاج شورت ملم",
+      "taskId": "80c8bf1f-e01d-4b8c-973b-e1b9a23bbdbf",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "عمل ٥ منح واعلان",
+      "taskId": "0f879d84-d891-4146-9efb-24b6367917ef",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "تدقيق",
+      "taskId": "f16db135-78b9-48e1-a351-d2adca1bf508",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "ملف السيرة الذاتية",
+      "taskId": "13c8ac19-67dd-48e3-a5f7-ff04b0d0e94f",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "الملف الصيني",
+      "taskId": "34ec973e-8acf-482d-8418-ab165e68868b",
+      "hours": 8,
+      "members": 1
+    },
+    {
+      "title": "تصميم اغلفة يوتيوب",
+      "taskId": "e682d074-4c15-4656-b25e-eb4b4966c012",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "تنسيق لاجتماع بين رؤساء الاقسام في مُلم",
+      "taskId": "9d1fd02c-23b0-4419-bd56-79ec516dd09c",
+      "hours": 3,
+      "members": 1
+    },
+    {
+      "title": "انشاء قروبات الاقسام",
+      "taskId": "0a414823-d800-4d67-b97e-27a6034b8c4b",
+      "hours": 15,
+      "members": 1
+    },
+    {
+      "title": "ملفات وترتيب وتدقيق",
+      "taskId": "29d0a438-86b8-4bcb-8a0e-1a56db0702ad",
+      "hours": 30,
+      "members": 1
+    },
+    {
+      "title": "عمل ملفات وتدقيق ومنح",
+      "taskId": "389ad867-2d1b-4efd-b730-e39f0e2694be",
+      "hours": 30,
+      "members": 1
+    },
+    {
+      "title": "مهمة انشاء الصور الخاصة بالقروبات العامة",
+      "taskId": "a67bf176-83d5-4e46-a3cb-458a4624843a",
+      "hours": 12,
+      "members": 1
+    },
+    {
+      "title": "عمل ملفات ، ومنح",
+      "taskId": "624f8227-e1cc-4a5a-b5b9-947a483fa4df",
+      "hours": 30,
+      "members": 1
+    },
+    {
+      "title": "تضبيط الانستجرام",
+      "taskId": "eedee8a4-99c3-487c-be14-abfafad4f6dd",
+      "hours": 15,
+      "members": 1
+    },
+    {
+      "title": "تعديل ملفات المنح",
+      "taskId": "ddd16184-1069-4a5d-9217-36312d309e8c",
+      "hours": 20,
+      "members": 1
+    },
+    {
+      "title": "فيديوهات اليوتيوب والتسجيل الصوتي",
+      "taskId": "ab18dcac-636a-4a35-af9d-7ae350cbdc8b",
+      "hours": 27,
+      "members": 1
+    },
+    {
+      "title": "انشاء حسابات السوشل ميديا والايميلات وربط الحسابات والدومين",
+      "taskId": "f266a999-f83e-48c6-8a6c-b09e766204c5",
+      "hours": 27,
+      "members": 1
+    },
+    {
+      "title": "البث الاول في ملم",
+      "taskId": "5f26d995-e59b-46e5-9ef4-68e609cae1a4",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "التعاونات والتواصل مع الفرق الاخرى",
+      "taskId": "f088c4cd-d1ee-4094-ad65-f85cd14912e3",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "مهام قسم التصميم",
+      "taskId": "47e4eaeb-ff0e-41d0-8bf0-5dce8f3f88e5",
+      "hours": 30,
+      "members": 1
+    },
+    {
+      "title": "عمل ملف التوفل",
+      "taskId": "bcc1a36e-d9b6-484c-9a7b-9fec48254b1a",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "عمل قسم التصميم",
+      "taskId": "bbcf1d3b-1663-4439-b378-6fc1b026f485",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "النشر على الانستا",
+      "taskId": "27dc3c70-9c1d-4b89-bd85-ec2607186b75",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "تصميم الدليل التعريفي",
+      "taskId": "d5090031-b647-4208-8ac5-8e8b1ead0250",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "تصميم الهويه الثانيه لملم",
+      "taskId": "ea2b43dc-618e-4b37-94b1-9009a9613338",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "تعديل الشهادات والختم والتوقيع",
+      "taskId": "59033817-d61a-46aa-98a2-9bd516e3c0e3",
+      "hours": 7,
+      "members": 1
+    },
+    {
+      "title": "مهام روتينه وادارة القسام",
+      "taskId": "81f55516-4f0e-48b4-987c-0f01456eea7d",
+      "hours": 12,
+      "members": 1
+    },
+    {
+      "title": "اختيار متطوعين الشهر",
+      "taskId": "2f2da4fb-13a0-4660-9edb-6fb0315ede7c",
+      "hours": 4,
+      "members": 1
+    },
+    {
+      "title": "توقيع وختم التعاون مع فريق ارام",
+      "taskId": "429f0ac1-2b83-4005-bb3e-0a7448d2824b",
+      "hours": 1,
+      "members": 1
+    },
+    {
+      "title": "التفاعل بالافكار",
+      "taskId": "a6541a8d-b038-4fb2-a1d8-10077a0cf049",
+      "hours": 1,
+      "members": 1
+    },
+    {
+      "title": "انتقادات واضافات",
+      "taskId": "0d005cca-14a4-4a98-a13a-d35a3d6d10cb",
+      "hours": 4,
+      "members": 1
+    },
+    {
+      "title": "مقطع صوتي منح",
+      "taskId": "b9c6ff14-1fa5-4cd3-96fa-317a5a42606d",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "مهام متعددة",
+      "taskId": "9f049bf4-ece2-4d54-98c2-24b0d3f0f3cd",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "مهام مونتاج",
+      "taskId": "c4d58685-ccba-42b4-b039-0db4a3ca426a",
+      "hours": 8,
+      "members": 1
+    },
+    {
+      "title": "مقطع اوبن دورز",
+      "taskId": "ae1e69b2-9b8a-495d-a881-82a26c99c275",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "مونتاج فيديو منحة ادرس في مصر",
+      "taskId": "d290c0a1-fa84-45a8-8eaf-52e86fe5b56b",
+      "hours": 4,
+      "members": 1
+    },
+    {
+      "title": "غلاف thumbnail فيديو أدرس في مصر",
+      "taskId": "9d819947-024a-4c54-963f-250cb7d50ff2",
+      "hours": 2,
+      "members": 1
+    },
+    {
+      "title": "مقطع شورت ادرس في مصر",
+      "taskId": "67e83731-5472-4d5b-84b6-53177c6dde17",
+      "hours": 6,
+      "members": 1
+    },
+    {
+      "title": "ملاحضات من قسم لقسم المونتاج",
+      "taskId": "ac1f7a58-ec99-42b5-a44a-4ed7cdab8f00",
+      "hours": 3,
+      "members": 1
+    },
+    {
+      "title": "تعديل صوت شورت ادرس بمصر",
+      "taskId": "cba3c424-bfc4-4faa-8e91-c1b8eb806a39",
+      "hours": 1,
+      "members": 1
+    },
+    {
+      "title": "مونتاج منحة كورسيرا شرح التقديم",
+      "taskId": "6aafbfc5-6121-4cb8-bac9-ebe30090a3b9",
+      "hours": 3,
+      "members": 1
+    },
+    {
+      "title": "مطقع شورت روسيا",
+      "taskId": "955cc0d0-e2e6-427d-956a-fd5d84e48aeb",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "فيديو خلفية لموقع ملم",
+      "taskId": "eb81d9a7-408f-430b-8f0d-6198baa70663",
+      "hours": 3,
+      "members": 1
+    },
+    {
+      "title": "إشراف قروبات وتنظيم",
+      "taskId": "1587691b-ef0e-4772-83e4-7b3ef35dd30b",
+      "hours": 30,
+      "members": 1
+    },
+    {
+      "title": "اعمال تصميم",
+      "taskId": "5c56c987-dea8-4496-a954-a2cbbc1f763b",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "اعمال و تصاميم",
+      "taskId": "70d1a3fc-19c9-4adb-81e7-be8156007982",
+      "hours": 6,
+      "members": 1
+    },
+    {
+      "title": "تصاميم و ملاحضات",
+      "taskId": "a93f80f7-3e87-4130-a37e-f5a2df154b17",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "تصميم ملف الايلتس",
+      "taskId": "58d8f4af-fdca-480c-aff1-828c77c2d0af",
+      "hours": 32,
+      "members": 1
+    },
+    {
+      "title": "عمل ملف الايلتس",
+      "taskId": "17824f4d-4096-4e80-a8cd-8b9aa51e41c6",
+      "hours": 15,
+      "members": 1
+    },
+    {
+      "title": "ملف الايلتس",
+      "taskId": "f5d0efae-3ed2-4455-94a2-e36c7fcca078",
+      "hours": 6,
+      "members": 1
+    },
+    {
+      "title": "هايلايت الانستا",
+      "taskId": "29d12546-117f-4e66-ad83-cbeffaa56fa9",
+      "hours": 15,
+      "members": 1
+    },
+    {
+      "title": "نشر ريلز انستا وفيديو للتيك توك  فيديو",
+      "taskId": "bf2a28ec-b383-4669-bf1a-ed92f413e272",
+      "hours": 3,
+      "members": 1
+    },
+    {
+      "title": "نشر ريلز انستا وفيديو للتيك توك  5",
+      "taskId": "f0b050a5-dfc3-48ff-a5a0-40b558cf5e48",
+      "hours": 3,
+      "members": 1
+    },
+    {
+      "title": "نشر ريلز انستا وفيديو للتيك توك  4",
+      "taskId": "c01a529a-6185-49db-a76f-f109cb0ebdc6",
+      "hours": 3,
+      "members": 1
+    },
+    {
+      "title": "نشر ريلز انستا وفيديو للتيك توك  3",
+      "taskId": "d8a8e21b-0b4f-4736-b213-a8d5b789f8c1",
+      "hours": 3,
+      "members": 1
+    },
+    {
+      "title": "نشر ريلز انستا وفيديو للتيك توك  2",
+      "taskId": "cc035907-24d0-42d6-985e-d57309695396",
+      "hours": 4,
+      "members": 1
+    },
+    {
+      "title": "نشر ريلز انستا وفيديو للتيك توك  1",
+      "taskId": "6547e856-5891-4903-9b3b-b541fa01853c",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "ادارة قسم التسويق",
+      "taskId": "ad1697a9-55c7-4ef8-ba35-0a542eb4e302",
+      "hours": 25,
+      "members": 1
+    },
+    {
+      "title": "بحث عن المنح شهد داود 8 ساعات",
+      "taskId": "4e363ee7-14a6-4734-a766-a34cb9687907",
+      "hours": 8,
+      "members": 1
+    },
+    {
+      "title": "تفاعل ومشاركة شهد داود",
+      "taskId": "0c4d2a1e-ae33-427d-bf5b-8a01b7f687fb",
+      "hours": 2,
+      "members": 1
+    },
+    {
+      "title": "تفاعل ومشاركة في قسم البحث عن المنح عبدالعزيز الجعفري",
+      "taskId": "99b94a0c-acef-4e47-a868-468bc85d0942",
+      "hours": 2,
+      "members": 1
+    },
+    {
+      "title": "تعديل صورت شورت روسيا",
+      "taskId": "1fe4b62e-8e83-4638-bcb5-8144660d70b4",
+      "hours": 2,
+      "members": 1
+    },
+    {
+      "title": "مونتاج شورت كورسيرا",
+      "taskId": "9f732852-9da8-4f0b-8d02-1c3bec2ced4d",
+      "hours": 7,
+      "members": 1
+    },
+    {
+      "title": "تعديل صوت شورت ايمان",
+      "taskId": "d678fda8-744c-404d-a2db-ed40f5416755",
+      "hours": 1,
+      "members": 1
+    },
+    {
+      "title": "بحث عن المنح اماني كورتلي 41 ساعة",
+      "taskId": "eb0abd30-6726-45e7-8c38-0d57b1c84703",
+      "hours": 41,
+      "members": 1
+    },
+    {
+      "title": "بحث عن المنح اماني كورتلي 16 ساعة",
+      "taskId": "9033466a-39b2-4c70-a56d-938f2265b7d1",
+      "hours": 16,
+      "members": 1
+    },
+    {
+      "title": "بحث عن المنح ومراجعة عمر الاصهب",
+      "taskId": "00cd7647-c9b4-436b-90d6-5178f937e53a",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "غلاف فيديوهات يوتيوب",
+      "taskId": "f03d85ae-4a93-47a4-9fae-bcf7f2a9df72",
+      "hours": 6,
+      "members": 1
+    },
+    {
+      "title": "بحث عن المنح أبرار  عباس 11 ساعات",
+      "taskId": "988c7560-0aac-4aab-8807-4d28d4a5a544",
+      "hours": 11,
+      "members": 1
+    },
+    {
+      "title": "بحث عن المنح عبدالعزيز الجعفري 24 ساعات",
+      "taskId": "f98675c9-feb2-4ba4-898f-14f2f2468df2",
+      "hours": 24,
+      "members": 1
+    },
+    {
+      "title": "المشاركة في تطوير ملم",
+      "taskId": "dd2b13b1-6aad-4f20-82bd-a859070c189b",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "ردود قسم الدعم",
+      "taskId": "4221a430-d18c-43b5-ba9f-32089e07cedc",
+      "hours": 6,
+      "members": 1
+    },
+    {
+      "title": "قسم الدعم",
+      "taskId": "2f4872d5-b4c7-48cd-949e-3619ee0ccf8b",
+      "hours": 20,
+      "members": 1
+    },
+    {
+      "title": "مهام قسم الدعم",
+      "taskId": "3aba0c9e-bca8-4be4-a422-9fe9babfc17d",
+      "hours": 1,
+      "members": 1
+    },
+    {
+      "title": "اشراف قروبات",
+      "taskId": "bee49a8e-cd24-4d04-a314-96627906ccad",
+      "hours": 20,
+      "members": 1
+    },
+    {
+      "title": "اشراف قروبات",
+      "taskId": "6f271669-bd62-406a-917d-d14e7db3e53a",
+      "hours": 30,
+      "members": 1
+    },
+    {
+      "title": "اشراف قروبات",
+      "taskId": "d6215985-bf21-414d-956d-c60cdb47d027",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "اعمال و تصاميم",
+      "taskId": "ce1f7973-3c4c-43be-8948-d84e3bd9e8a8",
+      "hours": 15,
+      "members": 1
+    },
+    {
+      "title": "دليل أعرف تخصصك",
+      "taskId": "f915abbb-0ce6-4028-a376-f4c8e8c0db1f",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "دليل الايلتس",
+      "taskId": "7b2ac2e8-497b-4d42-a71a-984697604032",
+      "hours": 8,
+      "members": 1
+    },
+    {
+      "title": "بحث عن المنح حسام خصروف 25 ساعة",
+      "taskId": "edbdce7d-4100-45d6-bba3-e63b92518f0c",
+      "hours": 25,
+      "members": 1
+    },
+    {
+      "title": "مشاركة و تفاعل في مجموعات ملم",
+      "taskId": "700ac78b-4a02-4309-b0db-4045ca58bddb",
+      "hours": 3,
+      "members": 1
+    },
+    {
+      "title": "دليل اعرف تخصصك",
+      "taskId": "f948d166-9ce0-4607-920f-8d5523736c80",
+      "hours": 6,
+      "members": 1
+    },
+    {
+      "title": "بحث عن المنح أبرار  عباس 7 ساعات",
+      "taskId": "bdf8a41e-5ad9-4572-8f3f-207080befc54",
+      "hours": 7,
+      "members": 1
+    },
+    {
+      "title": "تصميم بوستات انستا",
+      "taskId": "a396077b-f4a6-4d8e-8525-cab1bc78bc3d",
+      "hours": 20,
+      "members": 1
+    },
+    {
+      "title": "تفاعل في فريق ملم وقسم التصميم",
+      "taskId": "f63473cd-7749-4d35-a3fb-6e133db49f93",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "مراجعة عدد ساعات الاعضاء واضافتها",
+      "taskId": "832d67df-cb96-47c2-925d-7cc9cd583fd5",
+      "hours": 15,
+      "members": 1
+    },
+    {
+      "title": "تنظيم القاعدة",
+      "taskId": "4eefc9ef-977b-4e84-be7c-84430fa4f14f",
+      "hours": 8,
+      "members": 1
+    },
+    {
+      "title": "اصدار شهادات",
+      "taskId": "79231d9f-94e9-45ef-bcd9-94aa0dfe29d6",
+      "hours": 2,
+      "members": 1
+    },
+    {
+      "title": "تخطيط مشروع نظام ملم",
+      "taskId": "64788f98-867b-4af1-96ef-caaf76f950b1",
+      "hours": 20,
+      "members": 1
+    },
+    {
+      "title": "إنشاء قاعدة بيانات وجداول supabase",
+      "taskId": "dc98a076-5a87-40b0-adf0-065a3d0c911f",
+      "hours": 8,
+      "members": 1
+    },
+    {
+      "title": "عمل نظام ملم الجديد",
+      "taskId": "8b61e715-78ba-40ba-9b72-010264a38243",
+      "hours": 27,
+      "members": 1
+    },
+    {
+      "title": "تصميم شعار اكاديمية ملم",
+      "taskId": "f583b03e-1bc3-42fd-a2ea-ee8d1660b235",
+      "hours": 1,
+      "members": 1
+    },
+    {
+      "title": "عمل حساب linkedin لملم و اول منشور",
+      "taskId": "d22d8124-556e-4ecc-ac42-4ebc1b954a2d",
+      "hours": 2,
+      "members": 1
+    },
+    {
+      "title": "منشورات اكاديمية ملم",
+      "taskId": "3a47f1cc-f9d8-4fc6-bff6-91358e39e934",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "عمل نصوص الشهادات",
+      "taskId": "a27902ea-f2fb-4c48-8db2-2e92296590c6",
+      "hours": 4,
+      "members": 1
+    },
+    {
+      "title": "اصدار خمس شهادات تطوع",
+      "taskId": "aa2e9c9d-3ac1-40b6-95d5-45f8b4094c96",
+      "hours": 2,
+      "members": 1
+    },
+    {
+      "title": "تفاعل وتصاميم للتسويق",
+      "taskId": "a939cbbb-29de-4e94-932b-51d7e3631642",
+      "hours": 6,
+      "members": 1
+    },
+    {
+      "title": "إضافة الاعضاء الجدد لنظام المهام",
+      "taskId": "4e9a5fdc-e6e7-4d1f-b257-86d99d5ae63f",
+      "hours": 7,
+      "members": 1
+    },
+    {
+      "title": "تصميم غلاف+ الدليل الشامل لاعرف تخصصك",
+      "taskId": "536ef6f5-1e2a-4337-8de0-1921c4beb896",
+      "hours": 12,
+      "members": 1
+    },
+    {
+      "title": "ثمنيلات + دليل + غلاف",
+      "taskId": "f1f12d65-bb5c-4089-9be6-66149e63a8d5",
+      "hours": 12,
+      "members": 1
+    },
+    {
+      "title": "ثمنيلات",
+      "taskId": "06f2401b-8c5a-4231-b65e-f44b0ade9d56",
+      "hours": 6,
+      "members": 1
+    },
+    {
+      "title": "إشراف على العمل+ دليل",
+      "taskId": "1dcc5055-f71a-4c5a-91d6-a04cfb28eadb",
+      "hours": 9,
+      "members": 1
+    },
+    {
+      "title": "تفاعل في قسم التصميم",
+      "taskId": "6d1948d9-d5b8-42e6-ac14-4611c8f4b21b",
+      "hours": 2,
+      "members": 1
+    },
+    {
+      "title": "اعمال قسم التصميم",
+      "taskId": "f537f457-dd90-437f-9d96-98bfe8b61e0d",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "دليل اعرف تخصص منار فؤاد",
+      "taskId": "a4100e5a-803b-48d9-b313-d34166fce272",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "دليل اعرف تخصص شهد الأحمدي",
+      "taskId": "8b190f3d-eb31-4b73-acae-867fe353431b",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "تفاعل وتقييمات",
+      "taskId": "7bfd5d78-fb88-41de-bb17-da21f3966c3a",
+      "hours": 6,
+      "members": 1
+    },
+    {
+      "title": "إشراف بقروبات المنح",
+      "taskId": "194e202e-66f4-49ca-8573-254d53177a93",
+      "hours": 6,
+      "members": 1
+    },
+    {
+      "title": "بحث عن المنح عبدالعزيز الجعفري 10 ساعات",
+      "taskId": "32832eae-b33a-455f-ae7a-9d1429f631a1",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "بحث عن المنح شهد داود 2 ساعات",
+      "taskId": "e7bf79b9-8497-47ba-97cb-bbf2925bb6ab",
+      "hours": 2,
+      "members": 1
+    },
+    {
+      "title": "بحث عن المنح مريم عمرو 5 ساعات",
+      "taskId": "c9aef45a-3295-4c40-867b-fae8898492e5",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "تفاعل في قسم البحث عن المنح مريم عمرو 2 ساعات",
+      "taskId": "0d1a8487-97b5-4b58-a237-be960d7bca55",
+      "hours": 2,
+      "members": 1
+    },
+    {
+      "title": "بحث عن المنح شهد داود 3 ساعات",
+      "taskId": "a06bee7c-066c-49d7-b00f-9f23a27a991a",
+      "hours": 3,
+      "members": 1
+    },
+    {
+      "title": "بحث عن المنح عبدالعزيز الجعفري 9 ساعات",
+      "taskId": "0f2efc2b-d547-4cd6-b182-0a8a81edefa1",
+      "hours": 9,
+      "members": 1
+    },
+    {
+      "title": "بحث عن المنح أسيل السري 5 ساعات",
+      "taskId": "bf036858-4b2c-4657-b56c-a49832e91eee",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "مشاركة بالقسم وتفاعل أسيل السري 2 ساعات",
+      "taskId": "880e253d-3ec3-45d3-897c-6fe4e35da559",
+      "hours": 2,
+      "members": 1
+    },
+    {
+      "title": "إشراف القروبات",
+      "taskId": "60d26690-f3d0-454d-b90d-4e6ee1a91456",
+      "hours": 12,
+      "members": 1
+    },
+    {
+      "title": "بحث عن المنح مريم عمرو 4 ساعات",
+      "taskId": "abd7aab1-79c2-4081-94dc-d141d7053e82",
+      "hours": 4,
+      "members": 1
+    },
+    {
+      "title": "مونتاج فيديو",
+      "taskId": "07bdd405-e278-424a-b70f-e68ca59b7d71",
+      "hours": 18,
+      "members": 1
+    },
+    {
+      "title": "مشاركة بقسم ادارة المهام",
+      "taskId": "0689f1a3-5458-4e0f-ad7f-dd6ebbc9c08f",
+      "hours": 1,
+      "members": 1
+    },
+    {
+      "title": "ادارة قسم ادارة المهام ومشاركة",
+      "taskId": "c731627b-339e-41ce-be45-de69c3c6635d",
+      "hours": 8,
+      "members": 1
+    },
+    {
+      "title": "مشاركة بقسم ادارة المهام",
+      "taskId": "6eb5a812-42f3-45e8-a599-0408b76cee78",
+      "hours": 1,
+      "members": 1
+    },
+    {
+      "title": "designing  اعمال تصميم",
+      "taskId": "f3ebb2f8-5b73-4939-bd51-f898f29bcc82",
+      "hours": 5,
+      "members": 1
+    },
+    {
+      "title": "دليل المقابلات الشخصية (1)",
+      "taskId": "bb5ed0b8-55c3-4e2f-b9d3-4a20c64af45a",
+      "hours": 15,
+      "members": 1
+    },
+    {
+      "title": "دليل المقابلات الشخصية (2)",
+      "taskId": "a35fce02-9c90-4730-bb97-f2e2fb15d71b",
+      "hours": 4,
+      "members": 1
+    },
+    {
+      "title": "دليل المقابلات الشخصية (1)",
+      "taskId": "bfd94741-95ab-43ab-a70f-d6061306b1c9",
+      "hours": 6,
+      "members": 1
+    },
+    {
+      "title": "دليل المقابلات الشخصية (1)",
+      "taskId": "5b04da3f-bb87-417d-a557-f5cd270ade2f",
+      "hours": 3,
+      "members": 1
+    },
+    {
+      "title": "دليل المقابلات الشخصية (1)",
+      "taskId": "9f533774-e519-4762-96da-fbd03c2db69e",
+      "hours": 2,
+      "members": 1
+    },
+    {
+      "title": "كتابة  دليل تركيا (1)",
+      "taskId": "98fc1792-c414-4a71-9ec6-7a53e5b29c7b",
+      "hours": 23,
+      "members": 1
+    },
+    {
+      "title": "كتابة  دليل تركيا (2)",
+      "taskId": "8555370f-4840-4786-9037-35d380ab6e9b",
+      "hours": 30,
+      "members": 1
+    },
+    {
+      "title": "كتابة  دليل تركيا",
+      "taskId": "65b68872-676e-4dd6-b47c-74f739a46bac",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "دليل اعرف تخصصك (1)",
+      "taskId": "a0fca090-932e-4dca-aef7-777350db3ba7",
+      "hours": 13,
+      "members": 1
+    },
+    {
+      "title": "دليل اعرف تخصصك (1)",
+      "taskId": "7c7ccd1a-0066-4181-add9-381f6b4de636",
+      "hours": 10,
+      "members": 1
+    },
+    {
+      "title": "دليلك لاختيار وجهتك الدراسية (1)",
+      "taskId": "75d9b785-1253-40c8-9f49-084e357c4dc4",
+      "hours": 8,
+      "members": 1
+    },
+    {
+      "title": "دليلك لاختيار وجهتك الدراسية (1)",
+      "taskId": "94e34872-330d-47bb-8b3e-1df3c951c9d2",
+      "hours": 12,
+      "members": 1
+    },
+    {
+      "title": "دليلك لاختيار وجهتك الدراسية (1)",
+      "taskId": "86549f31-9474-4487-a198-a1be8ce7d134",
+      "hours": 3,
+      "members": 1
+    },
+    {
+      "title": "دليلك لاختيار وجهتك الدراسية (1)",
+      "taskId": "a79a7803-a399-47ee-b205-321d202a4403",
+      "hours": 11,
+      "members": 1
+    },
+    {
+      "title": "تفاعل في قسم المونتاج",
+      "taskId": "dad80261-495c-45cf-b69f-3f84094b1819",
+      "hours": 2,
+      "members": 1
+    },
+    {
+      "title": "ردود في قروب ملم للطلاب المصريين",
+      "taskId": "0b5fae14-effd-49b9-8f53-8828c8e40cda",
+      "hours": 1,
+      "members": 1
+    },
+    {
+      "title": "اشراف قروب ملم للطلاب المصريين",
+      "taskId": "5bd2caa7-ed37-42a6-8938-dcc63382446f",
+      "hours": 12,
+      "members": 1
+    },
+    {
+      "title": "اشراف قروب ملم للطلاب العراقيين",
+      "taskId": "75f817a4-d5e6-4ab9-84e4-f054d2036f78",
+      "hours": 22,
+      "members": 1
+    },
+    {
+      "title": "اشراف بجميع قروبات ملم",
+      "taskId": "aa3c07bb-e126-44d1-8776-d443b0a37bbc",
+      "hours": 120,
+      "members": 1
+    },
+    {
+      "title": "الإشراف على قروبات ملم قروب السوريين و المنحة التركية",
+      "taskId": "cc104ad4-744f-4fa5-ac40-61fb77e6584a",
+      "hours": 12,
+      "members": 1
+    },
+    {
+      "title": "الرد علئ استفسارت الطلاب بالمجموعات",
+      "taskId": "396bb7b4-3f96-4126-9b8d-67cc0afe3f37",
+      "hours": 6,
+      "members": 1
+    },
+    {
+      "title": "الرد علئ استفسارت الطلاب بالمجموعات",
+      "taskId": "46376aa8-7d02-4567-b850-3da7ef187243",
+      "hours": 15,
+      "members": 1
+    },
+    {
+      "title": "اضافة الردود",
+      "taskId": "1d5582d7-8632-4fbe-9ce3-7977aea97575",
+      "hours": 40,
+      "members": 1
+    },
+    {
+      "title": "سكربت الفيديوهات",
+      "taskId": "6524cfcc-2806-4d6c-8abe-bbe20ef49151",
+      "hours": 30,
+      "members": 1
+    },
+    {
+      "title": "دليلك لاختيار وجهتك الدارسية *الجامعة - المدينة*",
+      "taskId": "e071bc93-873e-4c18-aee8-3d16cb05e67e",
+      "hours": 20,
+      "members": 1
+    }
+  ],
+  "skipped": [],
+  "errors": []
+}

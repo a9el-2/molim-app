@@ -1,0 +1,512 @@
+{
+  "matched": [
+    {
+      "name": "شهد الجوري",
+      "accessCode": "8gVp12hJ6",
+      "userId": "MOL-00006",
+      "hours": 239,
+      "hoursLogIds": [
+        "82f40799-9a29-4b9b-ad62-cd8abde99c78",
+        "a2e31167-a264-4150-a60d-af5d3b87abd6",
+        "b36161d1-8633-4c47-b130-4a573305f743",
+        "0b4b2a96-39fb-4840-b4d2-196131b8d924",
+        "2af4de99-47a3-45fd-b5bc-6b798081085b",
+        "9bbff76a-a16b-499e-9042-9e9e491cbe6a",
+        "a33b24b9-7415-48f9-97b1-04077aa37383",
+        "f92f1442-4411-45d6-8913-a8649f84d9fe",
+        "4f5cab12-6a1e-441d-bf8c-7f6c33fa8211",
+        "8e6d4443-2a22-41d2-8816-7308c7c9e302"
+      ]
+    },
+    {
+      "name": "اصيل الصلوي",
+      "accessCode": "6zCt90xN1",
+      "userId": "MOL-00001",
+      "hours": 180,
+      "hoursLogIds": [
+        "3e2fa17a-15bf-4f4b-9090-9bf64aaa86e9",
+        "75415e95-03a5-42c5-9835-e570bdf77635",
+        "d66331c6-54b1-42de-b64d-2e8cc70695a2",
+        "acd03def-a27e-40f1-b6b0-ca85e92d1a8b",
+        "a4222d71-2d7a-48e9-834f-981dc7190d83",
+        "ebcc8a82-05ac-4e93-b514-136cb789dcc4",
+        "bf606f66-0398-4a04-8ee1-8c8beb00564d",
+        "58d0b58a-c80c-4199-93a8-c68aa1438626"
+      ]
+    }
+  ],
+  "notFound": [
+    {
+      "name": "محمد العريفي",
+      "accessCode": "1wDx56cP4",
+      "email": "mhmdalryfy244@gmail.com",
+      "hours": 111
+    },
+    {
+      "name": "شهد الضاهر",
+      "accessCode": "9fJp28dL7",
+      "email": "minototty@gmail.com",
+      "hours": 102
+    },
+    {
+      "name": "عمرو قائد",
+      "accessCode": "4sYn73jK5",
+      "email": "amr.k.qaid@gmail.com",
+      "hours": 255
+    },
+    {
+      "name": "ريم الزبيري",
+      "accessCode": "hQ8b14zM2",
+      "email": "r205em@gmail.com",
+      "hours": 73
+    },
+    {
+      "name": "عز الدين  مهدي",
+      "accessCode": "2dRt60yH9",
+      "email": "alazzabdslaam555@gmail.com",
+      "hours": 61
+    },
+    {
+      "name": "ايمان امين",
+      "accessCode": "7pLw81vB3",
+      "email": "ima7ni@gmail.com",
+      "hours": 85
+    },
+    {
+      "name": "آلاء الحُميدي",
+      "accessCode": "mK3v95qW6",
+      "email": "alaajohnson8@gmail.com",
+      "hours": 38
+    },
+    {
+      "name": "خالد مهدي",
+      "accessCode": "X9kM42rT8",
+      "email": "khalidali09013@gmail.com",
+      "hours": 84
+    },
+    {
+      "name": "أبرار  عباس",
+      "accessCode": "7p#Lw-81",
+      "email": "abrarabass2006@gmail.com",
+      "hours": 100
+    },
+    {
+      "name": "محمد النحوي",
+      "accessCode": "X9#kM-42",
+      "email": "mlminnhw1@gmail.com",
+      "hours": 86
+    },
+    {
+      "name": "مسك باعلوي",
+      "accessCode": "Z#5492JFR",
+      "email": "aafter800@gmail.com",
+      "hours": 18
+    },
+    {
+      "name": "محمود الغنيمي",
+      "accessCode": "V#7318WPT",
+      "email": "Mahmoodalghunaimi@gmail.com",
+      "hours": 53
+    },
+    {
+      "name": "شهد الأحمدي",
+      "accessCode": "N#8194XMB",
+      "email": "shuhdalahmadi@gmail.com",
+      "hours": 69
+    },
+    {
+      "name": "أسيل السري",
+      "accessCode": "R#2563KDV",
+      "email": "alsiraseel92@gmail.com",
+      "hours": 22
+    },
+    {
+      "name": "محمد فاروق",
+      "accessCode": "H#4251FNC",
+      "email": "mo6243224@gmail.com",
+      "hours": 30
+    },
+    {
+      "name": "حسام خصروف",
+      "accessCode": "L#6829ZTH",
+      "email": "hussam.khasrouf@gmail.com",
+      "hours": 80
+    },
+    {
+      "name": "عاصم المليكي",
+      "accessCode": "D#3614WKP",
+      "email": "aaassmm201120@gmail.com",
+      "hours": 10
+    },
+    {
+      "name": "شريف محمود",
+      "accessCode": "S#9047RDL",
+      "email": "Sherifabdalah0101@gmail.com",
+      "hours": 41
+    },
+    {
+      "name": "فيصل قاسم",
+      "accessCode": "B#1925GMC",
+      "email": "Faisalabdulaziz115@gmail.com",
+      "hours": 29
+    },
+    {
+      "name": "ملاك بن عصمان",
+      "accessCode": "T#7438JFV",
+      "email": "malakqaddafy38@gmail.com",
+      "hours": 102
+    },
+    {
+      "name": "سليمان حسن",
+      "accessCode": "M#5172XBS",
+      "email": "sulaimanghaleb780@gmail.com",
+      "hours": 10
+    },
+    {
+      "name": "نوف مرشد",
+      "accessCode": "K#2964LPR",
+      "email": "nifa36270@gmail.com",
+      "hours": 136
+    },
+    {
+      "name": "محمد حسام",
+      "accessCode": "P#6153ZNC",
+      "email": "87halarify@gmail.com",
+      "hours": 11
+    },
+    {
+      "name": "غادة العولقي",
+      "accessCode": "F#8341WHD",
+      "email": "ghada.7.g.7.g@gmail.com",
+      "hours": 10
+    },
+    {
+      "name": "يوسف خطاب",
+      "accessCode": "Q#4829KTM",
+      "email": "youssefkhattab236@gmail.com",
+      "hours": 10
+    },
+    {
+      "name": "صفيه ادريس",
+      "accessCode": "H#7694WSX",
+      "email": "safia.sa139@gmail.com",
+      "hours": 50
+    },
+    {
+      "name": "اريج علي",
+      "accessCode": "F#2486OPL",
+      "email": "areeghamood924@gmail.com",
+      "hours": 20
+    },
+    {
+      "name": "عبدالعزيز الجعفري",
+      "accessCode": "D#9153IKL",
+      "email": "abdulazizalgaafari@gmail.com",
+      "hours": 100
+    },
+    {
+      "name": "مريم عمرو",
+      "accessCode": "Y#5162RFV",
+      "email": "mariemamr730@gmail.com",
+      "hours": 11
+    },
+    {
+      "name": "شهد داود",
+      "accessCode": "Z#7834TGB",
+      "email": "shahddawd698@gmail.com",
+      "hours": 15
+    },
+    {
+      "name": "احمد حسن",
+      "accessCode": "W#8375WSX",
+      "email": "Dr.ahmed.official6@gmail.com",
+      "hours": 26
+    },
+    {
+      "name": "عمر الاصهب",
+      "accessCode": "V#4019QAZ",
+      "email": "omarmohammed123456k@gmail.com",
+      "hours": 5
+    },
+    {
+      "name": "اماني كورتلي",
+      "accessCode": "S#1934FGH",
+      "email": "amanikourteli401@gmail.com",
+      "hours": 16
+    },
+    {
+      "name": "منار عباس",
+      "accessCode": "R#7482ASD",
+      "email": "m08743091@gmail.com",
+      "hours": 10
+    },
+    {
+      "name": "زينب عبد المجيد",
+      "accessCode": "H#9204RWS",
+      "email": "Zanobyasa17@gmail.com",
+      "hours": 18
+    },
+    {
+      "name": "محمد حسين",
+      "accessCode": "G#3582LMP",
+      "email": "Muhammadelmasoudi@gmail.com",
+      "hours": 2
+    },
+    {
+      "name": "محمد مؤيد",
+      "accessCode": "D#4920FKT",
+      "email": "moh.jar.2006@gmail.com",
+      "hours": 30
+    },
+    {
+      "name": "منار فؤاد",
+      "accessCode": "S#6058JNB",
+      "email": "manarf684@gmail.com",
+      "hours": 5
+    },
+    {
+      "name": "عبدالله عمر",
+      "accessCode": "L#5823BXM",
+      "email": "abdullaheyani40@gmail.com",
+      "hours": 6
+    },
+    {
+      "name": "شمس امجد",
+      "accessCode": "K#9142ZLP",
+      "email": "sciencemudzr@gmail.com",
+      "hours": 18
+    },
+    {
+      "name": "طاهر ناصر",
+      "accessCode": "DSFG@#GF",
+      "email": "almlahytahr1@gmail.com",
+      "hours": 10
+    },
+    {
+      "name": "فاطمة علي كريم",
+      "accessCode": "B323@D65",
+      "email": "fataali214252@gmail.com",
+      "hours": 22
+    },
+    {
+      "name": "فاطمة باحشوان",
+      "accessCode": "VB@2632S",
+      "email": "fofoab359@gmail.com",
+      "hours": 10
+    },
+    {
+      "name": "يوسف علي",
+      "accessCode": "SD@5563D",
+      "email": "yousifbufd@gmail.com",
+      "hours": 12
+    },
+    {
+      "name": "مازن جابر",
+      "accessCode": "CV@5345S",
+      "email": "jabrm7579@gmail.com",
+      "hours": 1
+    },
+    {
+      "name": "احمد الروضي",
+      "accessCode": "Aa774#GG",
+      "email": "alrwdyly849@gmail.com",
+      "hours": 1
+    },
+    {
+      "name": "مروة عمر",
+      "accessCode": "SS#v533D",
+      "email": "marwaomar00ali@gmail.com",
+      "hours": 5
+    },
+    {
+      "name": "رقية ياسر",
+      "accessCode": "KKJG#2XF",
+      "email": "aeri200444@gmail.com",
+      "hours": 11
+    },
+    {
+      "name": "سارة طعمه",
+      "accessCode": "Bf2GH2G4",
+      "email": "saraabdullatif49@gmail.com",
+      "hours": 18
+    },
+    {
+      "name": "يوسف سعيد",
+      "accessCode": "SD5@d3SS",
+      "email": "youssefelshrbeny96@gmail.com",
+      "hours": 24
+    },
+    {
+      "name": "نصرالله مصطفى دماج",
+      "accessCode": "2sB8rV1n4",
+      "email": "nasrallahdammaj@gmail.com",
+      "hours": 5
+    },
+    {
+      "name": "اسامه العبسي",
+      "accessCode": "9dC1tM8z3",
+      "email": "osamawaseem2006@gmail.com",
+      "hours": 50
+    },
+    {
+      "name": "ثريا عبدالرحمن",
+      "accessCode": "6tV5bH7y6",
+      "email": "sosokoore3@gmail.com",
+      "hours": 54
+    },
+    {
+      "name": "مقتدى الصفوي",
+      "accessCode": "1kZ9pX3q8",
+      "email": "moktdaalsafe@gmail.com",
+      "hours": 44
+    },
+    {
+      "name": "روعه ماجد",
+      "accessCode": "7fG4jL5m2",
+      "email": "rawahalqadi18@gmail.com",
+      "hours": 5
+    },
+    {
+      "name": "سما الكاهلي",
+      "accessCode": "3jN6fY4b7",
+      "email": "samaalkahli20@gmail.com",
+      "hours": 66
+    },
+    {
+      "name": "نغم علي",
+      "accessCode": "5pW3kH6x9",
+      "email": "amk256596@gmail.com",
+      "hours": 28
+    },
+    {
+      "name": "سامي يوسف",
+      "accessCode": "4mK7xP9w2",
+      "email": "samir3wi.1@gmail.com",
+      "hours": 136
+    },
+    {
+      "name": "جود صالح",
+      "accessCode": "3mR2wN8c1",
+      "email": "ljoodl333l@gmail.com",
+      "hours": 44
+    }
+  ],
+  "skipped": [
+    {
+      "name": "خالد حسن",
+      "accessCode": "G#5317QAZ",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "علي عطية",
+      "accessCode": "C#6820UJM",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "إياد بيومي",
+      "accessCode": "B#3491YHN",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "فطوم عبده",
+      "accessCode": "X#2941EDC",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "حاتم العولقي",
+      "accessCode": "T#6258JKL",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "شهد عبده",
+      "accessCode": "N#3625ZXC",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "دعاء احمد علي",
+      "accessCode": "L#5471HJK",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "رعد مكابس",
+      "accessCode": "M#8193QWE",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "عمرو حسن",
+      "accessCode": "K#2839VDF",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "سلسبيل حسين",
+      "accessCode": "J#6147BCX",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "شمس فرحان",
+      "accessCode": "P#1764XYZ",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "إيمان محمود",
+      "accessCode": "B#8315VGH",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "نوفة راسم",
+      "accessCode": "T#4391WQC",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "إيمان محمود",
+      "accessCode": "R#2684HDF",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "بسملة رضا",
+      "accessCode": "M#7419KRT",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "رفا العامري",
+      "accessCode": "N#3254FVS",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "تونس رشيد",
+      "accessCode": "DF@3DXV4",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "سلمى عمار",
+      "accessCode": "AH#DS434",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "حسن السيد",
+      "accessCode": "H#FDSFG3",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "رقية عبد الباسط",
+      "accessCode": "VV@D56C",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "غنوه خضور",
+      "accessCode": "FSDD4353",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "سـفيـان أَحـمـد",
+      "accessCode": "BVDF&3SF",
+      "reason": "ساعات = 0"
+    },
+    {
+      "name": "الهام منصور",
+      "accessCode": "G4352#DC",
+      "reason": "ساعات = 0"
+    }
+  ],
+  "errors": []
+}
